@@ -1,0 +1,17 @@
+aws_region = "ap-south-1"
+environment = "dev"
+
+instance_type       = "t4g.small"
+root_volume_size_gib = 16
+
+# SSH is disabled when these remain null. If enabled, use only your current
+# public IP as a /32; never use 0.0.0.0/0.
+allowed_ssh_cidr = null
+key_name         = null
+
+# Keep disabled until the gateway/frontend is actually deployed.
+enable_public_web = false
+
+# Optional and disabled for the lowest-cost plan. The name must be globally unique.
+enable_artifacts_bucket = false
+artifacts_bucket_name   = null

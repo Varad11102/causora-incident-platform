@@ -1,0 +1,6 @@
+package io.causora.events;
+
+public enum EventType {
+    SERVICE_ERROR, SERVICE_DOWN, HIGH_LATENCY, KAFKA_LAG, DATABASE_ERROR,
+    RESOURCE_EXHAUSTION, DEPLOYMENT
+}

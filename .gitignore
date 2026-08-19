@@ -1,0 +1,41 @@
+# Java
+target/
+*.class
+*.jar
+.mvn/wrapper/apache-maven-*/
+.m2/
+.m2-cache/
+.maven-target/
+
+# Node
+node_modules/
+.next/
+out/
+.npm-cache/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Logs and operating-system files
+*.log
+.DS_Store
+Thumbs.db
+
+# Terraform local state and saved plans
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+# Local verification output
+.phase1-verify/
+
+# Ansible runtime files
+*.retry

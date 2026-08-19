@@ -1,0 +1,85 @@
+# Causora Architecture
+
+## Current shape
+
+Causora has five independently buildable Spring Boot services and a Next.js frontend. The first working AWS slice runs Kafka, PostgreSQL, Telemetry Service, Incident Service, and the demo payment service on one low-cost ARM64 EC2 instance with Docker Compose.
+
+## Planned service boundaries
+
+| Service | Responsibility |
+| --- | --- |
+| Gateway | External API entry point and future cross-cutting policy enforcement |
+| Telemetry Service | Receive and normalize telemetry and operational events |
+| Incident Service | Detect, create, and manage incidents |
+| Investigation Service | Collect structured evidence, generate and rank hypotheses, track confidence and counter-evidence, and later call provider-independent AI |
+| Remediation Service | Recommend actions, require human approval, execute Ansible, and verify recovery |
+
+## Planned first data flow
+
+```text
+Demo service
+  -> OpenTelemetry
+  -> Telemetry Service
+  -> Kafka
+  -> Incident Service
+  -> Incident detected
+```
+
+Phase 1 implements the direct demo event path (OpenTelemetry instrumentation remains a later phase):
+
+```text
+demo-payment-service (:8090)
+  -> POST OperationalEvent
+telemetry-service (:8081)
+  -> validation and normalization
+Kafka: telemetry.operational.v1 (JSON)
+  -> consumer group incident-service-v1
+incident-service (:8082)
+  -> failure policy and event-ID idempotency
+PostgreSQL (:5432, causora_incidents)
+```
+
+Kafka is one KRaft broker with only the internal Compose listener at `kafka:29092`. Flyway owns the incident schema; Hibernate uses schema validation rather than automatic production DDL. PostgreSQL and Kafka have no host port bindings. Application diagnostic ports bind to `127.0.0.1` and are reached through SSM commands.
+
+```mermaid
+flowchart LR
+    Demo[Demo payment service] -->|structured OperationalEvent| Telemetry[Telemetry service]
+    Telemetry -->|telemetry.operational.v1| Kafka[(Kafka KRaft)]
+    Kafka -->|incident-service-v1| Rules[Deterministic incident rules]
+    Rules -->|unique triggering event ID| Postgres[(PostgreSQL)]
+    IncidentAPI[Incident REST API] --> Postgres
+```
+
+The event ID is the Kafka key and a unique database field. Re-delivery is therefore observable and idempotent: the consumer records `incident_duplicate_ignored` and does not create another incident.
+
+## Planned investigation flow
+
+```text
+Incident
+  -> collect evidence
+  -> generate hypotheses
+  -> rank hypotheses
+  -> AI verification
+  -> root-cause report
+```
+
+AI output will not be a plain log summary. Investigations will be represented using evidence, hypotheses, confidence scores, causal relationships, and counter-evidence. The AI integration will be provider-independent, with Amazon Bedrock support considered later.
+
+## Planned remediation flow
+
+```text
+Root cause
+  -> recommended remediation
+  -> human approval
+  -> Ansible
+  -> managed node
+  -> recovery verification
+```
+
+Managed-node containers will initially simulate multiple Linux/Ansible targets.
+
+## Initial demonstration scenarios
+
+1. Kafka consumer lag after a bad deployment.
+2. Database or SSL failure after a certificate/configuration change.
+3. Resource exhaustion causing latency, timeouts, and downstream failures.
