@@ -46,6 +46,14 @@ docker stats --no-stream
 
 Idempotency is verified by posting the same explicit `eventId` twice to Telemetry Service and confirming one PostgreSQL incident row plus an `incident_duplicate_ignored` log entry.
 
+The deterministic investigation scenario is:
+
+```bash
+curl -fsS -X POST http://127.0.0.1:8090/demo/scenarios/database-failure
+```
+
+It produces one incident with five correlated records: deployment change, database failure, service error, latency spike, and recovery. Verify the evidence, timeline, and ranked hypotheses at the three nested incident endpoints. Recovery is retained as counter-evidence rather than silently discarded.
+
 ## Capacity
 
 The minimum stack uses explicit container limits and small JVM heaps. A persistent 1 GiB swapfile protects the 2 GiB instance against transient startup spikes. This is appropriate for the first demonstration flow, not for running all planned Java services, Grafana, Prometheus, Kafka, and PostgreSQL simultaneously. Measure before adding components and optimize before considering `t4g.medium`.

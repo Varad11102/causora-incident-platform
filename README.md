@@ -2,7 +2,7 @@
 
 Causora is a cloud-ready incident investigation and remediation platform focused on causal reasoning from structured operational evidence.
 
-The first cloud MVP slice is operational: structured telemetry is normalized, published to Kafka, evaluated by deterministic incident rules, and persisted idempotently in PostgreSQL. Investigation, AI analysis, authentication, and approval-controlled remediation remain later milestones.
+The cloud MVP now normalizes structured telemetry, publishes it through Kafka, creates incidents idempotently, persists correlated evidence and ordered timelines, and ranks explainable deterministic hypotheses. AI analysis, authentication, and approval-controlled remediation remain later milestones.
 
 ## Services
 
@@ -57,6 +57,19 @@ curl -X POST http://localhost:8090/demo/recover
 ```
 
 Recovery emits an informational `DEPLOYMENT` event. Automatic incident resolution is outside Phase 1.
+
+## Deterministic investigation
+
+Trigger the richer database/deployment scenario from the host through SSM:
+
+```bash
+curl -X POST http://127.0.0.1:8090/demo/scenarios/database-failure
+curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/evidence
+curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/timeline
+curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/hypotheses
+```
+
+The scenario emits a deployment change, database failure, service error, latency spike, and recovery. Correlation uses trace/deployment identifiers and a bounded recent-incident window. Scores are rule-based and include supporting and counter-evidence IDs; no AI or statistical model participates.
 
 ## AWS Phase 1 deployment
 

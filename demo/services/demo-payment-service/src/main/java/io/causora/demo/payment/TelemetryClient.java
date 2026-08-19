@@ -18,8 +18,13 @@ public class TelemetryClient {
         this.restClient = builder.baseUrl(baseUrl).build();
     }
     public OperationalEvent send(EventType eventType, Severity severity, String message) {
+        return send(eventType, severity, message, null, "demo-deployment-v1", Map.of("environment", "demo"));
+    }
+
+    public OperationalEvent send(EventType eventType, Severity severity, String message, String traceId,
+                                 String deploymentId, Map<String, String> attributes) {
         OperationalEvent event = new OperationalEvent(null, null, "demo-payment-service", "demo-node-1",
-                eventType, severity, message, null, "demo-deployment-v1", Map.of("environment", "demo"));
+                eventType, severity, message, traceId, deploymentId, attributes);
         OperationalEvent accepted = restClient.post().uri("/api/v1/telemetry/events").body(event)
                 .retrieve().body(OperationalEvent.class);
         log.info("demo_event_sent eventId={} eventType={} severity={}", accepted == null ? null : accepted.eventId(), eventType, severity);

@@ -52,6 +52,22 @@ flowchart LR
 
 The event ID is the Kafka key and a unique database field. Re-delivery is therefore observable and idempotent: the consumer records `incident_duplicate_ignored` and does not create another incident.
 
+## Deterministic investigation foundation
+
+```mermaid
+flowchart LR
+    Incident --> Evidence[Structured evidence]
+    Evidence --> Timeline[Ordered timeline]
+    Evidence --> Rules[Explainable hypothesis rules]
+    Rules --> Ranked[Ranked competing hypotheses]
+    Ranked --> Support[Supporting evidence IDs]
+    Ranked --> Counter[Counter-evidence IDs]
+```
+
+Pre-incident telemetry is retained without an incident link. When a triggering failure creates an incident, matching trace or deployment evidence from the preceding ten minutes is linked and receives timeline entries. Subsequent events correlate by trace ID, deployment ID, or a recent open incident for the same service.
+
+Current hypothesis types are database connectivity failure, bad deployment, Kafka consumer degradation, and resource exhaustion. Scores use documented fixed weights: direct evidence, temporal correlation, shared deployment correlation, secondary symptoms, and negative recovery evidence. Scores are clamped to 0–100 and recomputed whenever correlated evidence arrives.
+
 ## Planned investigation flow
 
 ```text
