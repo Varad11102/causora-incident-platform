@@ -52,6 +52,10 @@ public class InvestigationCoordinator {
 
         createTimelineEntry(evidence, incident.getId());
         if (created.isPresent()) linkPendingEvidence(event, incident.getId());
+        if (evidence.getEvidenceType() == EvidenceType.RECOVERY_EVENT && incident.getStatus() != IncidentStatus.RESOLVED) {
+            incident.resolve(event.timestamp());
+            log.info("incident_resolved incidentId={} recoveryEvidenceId={}", incident.getId(), evidence.getId());
+        }
         hypothesisEngine.refresh(incident.getId());
         log.info("investigation_refreshed incidentId={} evidenceId={} evidenceType={}",
                 incident.getId(), evidence.getId(), evidence.getEvidenceType());

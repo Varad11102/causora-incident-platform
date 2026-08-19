@@ -54,6 +54,8 @@ curl -fsS -X POST http://127.0.0.1:8090/demo/scenarios/database-failure
 
 It produces one incident with five correlated records: deployment change, database failure, service error, latency spike, and recovery. Verify the evidence, timeline, and ranked hypotheses at the three nested incident endpoints. Recovery is retained as counter-evidence rather than silently discarded.
 
+The final recovery event also transitions the incident to `RESOLVED`. Scrape-ready metrics can be inspected through SSM at `/actuator/prometheus` on ports `8081`, `8082`, and `8090`; these ports remain bound to `127.0.0.1` and are not publicly exposed.
+
 ## Capacity
 
 The minimum stack uses explicit container limits and small JVM heaps. A persistent 1 GiB swapfile protects the 2 GiB instance against transient startup spikes. This is appropriate for the first demonstration flow, not for running all planned Java services, Grafana, Prometheus, Kafka, and PostgreSQL simultaneously. Measure before adding components and optimize before considering `t4g.medium`.

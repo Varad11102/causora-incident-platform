@@ -68,6 +68,12 @@ Pre-incident telemetry is retained without an incident link. When a triggering f
 
 Current hypothesis types are database connectivity failure, bad deployment, Kafka consumer degradation, and resource exhaustion. Scores use documented fixed weights: direct evidence, temporal correlation, shared deployment correlation, secondary symptoms, and negative recovery evidence. Scores are clamped to 0–100 and recomputed whenever correlated evidence arrives.
 
+Recovery evidence closes the lifecycle deterministically by changing the linked incident from `OPEN` to `RESOLVED`. Evidence, timeline entries, and hypotheses remain available for audit and future incident-memory retrieval.
+
+## Metrics foundation
+
+Telemetry Service, Incident Service, and the demo service expose Micrometer Prometheus endpoints on their loopback-bound application ports. They include application-tagged JVM, HTTP, Kafka-client, process, and system measurements. A Prometheus/Grafana runtime is intentionally deferred until the host memory budget can accommodate it.
+
 ## Planned investigation flow
 
 ```text

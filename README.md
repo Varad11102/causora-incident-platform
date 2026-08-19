@@ -69,7 +69,17 @@ curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/timeline
 curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/hypotheses
 ```
 
-The scenario emits a deployment change, database failure, service error, latency spike, and recovery. Correlation uses trace/deployment identifiers and a bounded recent-incident window. Scores are rule-based and include supporting and counter-evidence IDs; no AI or statistical model participates.
+The scenario emits a deployment change, database failure, service error, latency spike, and recovery. Correlation uses trace/deployment identifiers and a bounded recent-incident window. Scores are rule-based and include supporting and counter-evidence IDs; no AI or statistical model participates. The recovery evidence transitions the incident to `RESOLVED` without deleting its investigation history.
+
+The deployed JVMs expose Prometheus-format metrics on their private actuator endpoints:
+
+```bash
+curl http://127.0.0.1:8081/actuator/prometheus
+curl http://127.0.0.1:8082/actuator/prometheus
+curl http://127.0.0.1:8090/actuator/prometheus
+```
+
+These endpoints currently provide JVM, HTTP, Kafka-client, process, and system metrics. No Prometheus server is deployed yet.
 
 ## AWS Phase 1 deployment
 

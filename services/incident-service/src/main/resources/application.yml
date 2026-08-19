@@ -28,7 +28,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
 causora:
   kafka:
     operational-events-topic: telemetry.operational.v1

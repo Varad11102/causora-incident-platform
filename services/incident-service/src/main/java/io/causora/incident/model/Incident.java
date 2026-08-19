@@ -36,4 +36,8 @@ public class Incident {
     public String getSourceNode() { return sourceNode; }
     public UUID getTriggeringEventId() { return triggeringEventId; }
     public String getSummary() { return summary; }
+    public void resolve(Instant resolvedAt) {
+        this.status = IncidentStatus.RESOLVED;
+        this.updatedAt = resolvedAt;
+    }
 }
