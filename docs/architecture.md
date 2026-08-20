@@ -74,6 +74,12 @@ Recovery evidence closes the lifecycle deterministically by changing the linked 
 
 Telemetry Service, Incident Service, and the demo service expose Micrometer Prometheus endpoints on their loopback-bound application ports. They include application-tagged JVM, HTTP, Kafka-client, process, and system measurements. A Prometheus/Grafana runtime is intentionally deferred until the host memory budget can accommodate it.
 
+## Incident memory
+
+Resolution creates an immutable memory snapshot once per incident. The snapshot selects the highest deterministic hypothesis and records symptoms, evidence summaries, deployment ID, affected services, inferred remediation, and the recovery result. Replayed recovery evidence cannot overwrite the snapshot because both evidence event IDs and memory incident IDs are unique.
+
+Memory remains relational and inspectable in PostgreSQL. Vector search and AI-based similarity are deliberately deferred until the evidence corpus is large enough to justify them.
+
 ## Planned investigation flow
 
 ```text

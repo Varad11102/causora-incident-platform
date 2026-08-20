@@ -81,6 +81,17 @@ curl http://127.0.0.1:8090/actuator/prometheus
 
 These endpoints currently provide JVM, HTTP, Kafka-client, process, and system metrics. No Prometheus server is deployed yet.
 
+## Incident memory
+
+When recovery resolves an incident, Incident Service creates one immutable deterministic memory snapshot containing the top-ranked cause, symptoms, evidence summary, deployment, affected services, inferred remediation, and observed result.
+
+```bash
+curl http://127.0.0.1:8082/api/v1/incident-memory
+curl http://127.0.0.1:8082/api/v1/incident-memory/incidents/{incidentId}
+```
+
+This is structured PostgreSQL persistence rather than vector similarity or an AI-generated narrative. Similarity retrieval can be added after enough real incident memories exist.
+
 ## AWS Phase 1 deployment
 
 The current low-cost deployment runs on one ARM64 `t4g.small` instance and is managed over AWS Systems Manager. Kafka and PostgreSQL are internal Compose services. The three temporary diagnostic application ports bind only to host loopback, and the EC2 security group has no inbound rules.

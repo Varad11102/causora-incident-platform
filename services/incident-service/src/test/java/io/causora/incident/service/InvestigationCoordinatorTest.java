@@ -19,14 +19,15 @@ class InvestigationCoordinatorTest {
         EvidenceRepository evidence = mock(EvidenceRepository.class);
         TimelineRepository timeline = mock(TimelineRepository.class);
         HypothesisEngine hypotheses = mock(HypothesisEngine.class);
+        IncidentMemoryService memory = mock(IncidentMemoryService.class);
         OperationalEvent event = new OperationalEvent(UUID.randomUUID(), Instant.now(), "payment", "node-1",
                 EventType.DATABASE_ERROR, Severity.CRITICAL, "database unavailable", "trace-1", "deploy-1", Map.of());
         when(evidence.existsByEventId(event.eventId())).thenReturn(true);
 
-        new InvestigationCoordinator(incidentCreation, incidents, evidence, timeline, hypotheses).process(event);
+        new InvestigationCoordinator(incidentCreation, incidents, evidence, timeline, hypotheses, memory).process(event);
 
         verify(evidence).existsByEventId(event.eventId());
-        verifyNoInteractions(incidentCreation, incidents, timeline, hypotheses);
+        verifyNoInteractions(incidentCreation, incidents, timeline, hypotheses, memory);
         verifyNoMoreInteractions(evidence);
     }
 
@@ -37,6 +38,7 @@ class InvestigationCoordinatorTest {
         EvidenceRepository evidence = mock(EvidenceRepository.class);
         TimelineRepository timeline = mock(TimelineRepository.class);
         HypothesisEngine hypotheses = mock(HypothesisEngine.class);
+        IncidentMemoryService memory = mock(IncidentMemoryService.class);
         Instant now = Instant.now();
         OperationalEvent event = new OperationalEvent(UUID.randomUUID(), now, "payment", "node-1",
                 EventType.DATABASE_ERROR, Severity.CRITICAL, "database unavailable", "new-trace", "new-deploy", Map.of());
@@ -49,7 +51,7 @@ class InvestigationCoordinatorTest {
         when(evidence.findByIncidentIdIsNullAndSourceServiceAndObservedAtAfterOrderByObservedAtAsc(anyString(), any()))
                 .thenReturn(java.util.List.of());
 
-        new InvestigationCoordinator(incidentCreation, incidents, evidence, timeline, hypotheses).process(event);
+        new InvestigationCoordinator(incidentCreation, incidents, evidence, timeline, hypotheses, memory).process(event);
 
         verify(incidentCreation).process(event);
         verify(incidents, never()).findFirstBySourceServiceAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any());
@@ -63,6 +65,7 @@ class InvestigationCoordinatorTest {
         EvidenceRepository evidence = mock(EvidenceRepository.class);
         TimelineRepository timeline = mock(TimelineRepository.class);
         HypothesisEngine hypotheses = mock(HypothesisEngine.class);
+        IncidentMemoryService memory = mock(IncidentMemoryService.class);
         Instant createdAt = Instant.now().minusSeconds(30);
         Incident incident = new Incident(UUID.randomUUID(), createdAt, createdAt, IncidentStatus.OPEN, Severity.CRITICAL,
                 "Database failure", "payment", "node-1", UUID.randomUUID(), "failure");
@@ -76,11 +79,13 @@ class InvestigationCoordinatorTest {
                 .thenReturn(Optional.of(prior));
         when(incidents.findById(incident.getId())).thenReturn(Optional.of(incident));
         when(evidence.save(any(Evidence.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(hypotheses.refresh(incident.getId())).thenReturn(java.util.List.of());
 
-        new InvestigationCoordinator(incidentCreation, incidents, evidence, timeline, hypotheses).process(recovery);
+        new InvestigationCoordinator(incidentCreation, incidents, evidence, timeline, hypotheses, memory).process(recovery);
 
         assertThat(incident.getStatus()).isEqualTo(IncidentStatus.RESOLVED);
         verify(timeline).save(any(TimelineEntry.class));
         verify(hypotheses).refresh(incident.getId());
+        verify(memory).snapshot(eq(incident), anyList(), eq(java.util.List.of()));
     }
 }

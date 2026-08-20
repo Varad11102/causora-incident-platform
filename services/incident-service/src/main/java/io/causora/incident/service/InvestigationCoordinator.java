@@ -21,15 +21,17 @@ public class InvestigationCoordinator {
     private final EvidenceRepository evidenceRepository;
     private final TimelineRepository timelineRepository;
     private final HypothesisEngine hypothesisEngine;
+    private final IncidentMemoryService incidentMemoryService;
 
     public InvestigationCoordinator(IncidentCreationService incidentCreationService, IncidentRepository incidentRepository,
                                     EvidenceRepository evidenceRepository, TimelineRepository timelineRepository,
-                                    HypothesisEngine hypothesisEngine) {
+                                    HypothesisEngine hypothesisEngine, IncidentMemoryService incidentMemoryService) {
         this.incidentCreationService = incidentCreationService;
         this.incidentRepository = incidentRepository;
         this.evidenceRepository = evidenceRepository;
         this.timelineRepository = timelineRepository;
         this.hypothesisEngine = hypothesisEngine;
+        this.incidentMemoryService = incidentMemoryService;
     }
 
     @Transactional
@@ -56,7 +58,11 @@ public class InvestigationCoordinator {
             incident.resolve(event.timestamp());
             log.info("incident_resolved incidentId={} recoveryEvidenceId={}", incident.getId(), evidence.getId());
         }
-        hypothesisEngine.refresh(incident.getId());
+        List<Hypothesis> hypotheses = hypothesisEngine.refresh(incident.getId());
+        if (incident.getStatus() == IncidentStatus.RESOLVED) {
+            incidentMemoryService.snapshot(incident,
+                    evidenceRepository.findByIncidentIdOrderByObservedAtAsc(incident.getId()), hypotheses);
+        }
         log.info("investigation_refreshed incidentId={} evidenceId={} evidenceType={}",
                 incident.getId(), evidence.getId(), evidence.getEvidenceType());
     }
