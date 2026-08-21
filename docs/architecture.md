@@ -70,6 +70,8 @@ Current hypothesis types are database connectivity failure, bad deployment, Kafk
 
 Recovery evidence closes the lifecycle deterministically by changing the linked incident from `OPEN` to `RESOLVED`. Evidence, timeline entries, and hypotheses remain available for audit and future incident-memory retrieval.
 
+Incident-memory retrieval is deterministic and local. It ranks resolved incidents using an explicit 100-point score: matching highest-ranked cause (45), overlapping services (30), shared evidence types (20), and the same deployment identifier (5). The API returns the component scores and reasons; it does not use embeddings, vector storage, or AI.
+
 ## Metrics foundation
 
 Telemetry Service, Incident Service, and the demo service expose Micrometer Prometheus endpoints on their loopback-bound application ports. They include application-tagged JVM, HTTP, Kafka-client, process, and system measurements. A Prometheus/Grafana runtime is intentionally deferred until the host memory budget can accommodate it.

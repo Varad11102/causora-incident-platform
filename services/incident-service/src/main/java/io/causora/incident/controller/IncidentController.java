@@ -8,6 +8,8 @@ import io.causora.incident.repository.TimelineRepository;
 import io.causora.incident.model.Evidence;
 import io.causora.incident.model.Hypothesis;
 import io.causora.incident.model.TimelineEntry;
+import io.causora.incident.service.IncidentMemorySimilarityService;
+import io.causora.incident.service.SimilarIncidentMemory;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,13 +23,16 @@ public class IncidentController {
     private final EvidenceRepository evidenceRepository;
     private final TimelineRepository timelineRepository;
     private final HypothesisRepository hypothesisRepository;
+    private final IncidentMemorySimilarityService similarityService;
 
     public IncidentController(IncidentRepository repository, EvidenceRepository evidenceRepository,
-                              TimelineRepository timelineRepository, HypothesisRepository hypothesisRepository) {
+                              TimelineRepository timelineRepository, HypothesisRepository hypothesisRepository,
+                              IncidentMemorySimilarityService similarityService) {
         this.repository = repository;
         this.evidenceRepository = evidenceRepository;
         this.timelineRepository = timelineRepository;
         this.hypothesisRepository = hypothesisRepository;
+        this.similarityService = similarityService;
     }
 
     @GetMapping
@@ -53,5 +58,12 @@ public class IncidentController {
     public ResponseEntity<List<Hypothesis>> hypotheses(@PathVariable UUID id) {
         if (!repository.existsById(id)) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(hypothesisRepository.findByIncidentIdOrderByScoreDescHypothesisTypeAsc(id));
+    }
+
+    @GetMapping("/{id}/similar-memory")
+    public ResponseEntity<List<SimilarIncidentMemory>> similarMemory(
+            @PathVariable UUID id, @RequestParam(defaultValue = "5") int limit) {
+        if (!repository.existsById(id)) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(similarityService.findSimilar(id, limit));
     }
 }

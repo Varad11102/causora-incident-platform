@@ -88,6 +88,7 @@ When recovery resolves an incident, Incident Service creates one immutable deter
 ```bash
 curl http://127.0.0.1:8082/api/v1/incident-memory
 curl http://127.0.0.1:8082/api/v1/incident-memory/incidents/{incidentId}
+curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/similar-memory?limit=5
 ```
 
 This is structured PostgreSQL persistence rather than vector similarity or an AI-generated narrative. Similarity retrieval can be added after enough real incident memories exist.

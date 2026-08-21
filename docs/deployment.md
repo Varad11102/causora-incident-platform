@@ -58,6 +58,8 @@ The final recovery event also transitions the incident to `RESOLVED`. Scrape-rea
 
 Resolved-incident memory is available from `/api/v1/incident-memory` and `/api/v1/incident-memory/incidents/{incidentId}` on Incident Service. The snapshot is generated locally from persisted evidence and hypotheses and requires no external AI or managed data service.
 
+Similar historical incidents are available from `/api/v1/incidents/{incidentId}/similar-memory?limit=5`. The limit is clamped to 1-20, the current incident is excluded, and every match includes deterministic score components and human-readable reasons.
+
 ## Capacity
 
 The minimum stack uses explicit container limits and small JVM heaps. A persistent 1 GiB swapfile protects the 2 GiB instance against transient startup spikes. This is appropriate for the first demonstration flow, not for running all planned Java services, Grafana, Prometheus, Kafka, and PostgreSQL simultaneously. Measure before adding components and optimize before considering `t4g.medium`.

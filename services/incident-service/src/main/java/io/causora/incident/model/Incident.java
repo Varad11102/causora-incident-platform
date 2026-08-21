@@ -38,6 +38,6 @@ public class Incident {
     public String getSummary() { return summary; }
     public void resolve(Instant resolvedAt) {
         this.status = IncidentStatus.RESOLVED;
-        this.updatedAt = resolvedAt;
+        this.updatedAt = resolvedAt.isBefore(createdAt) ? createdAt : resolvedAt;
     }
 }
