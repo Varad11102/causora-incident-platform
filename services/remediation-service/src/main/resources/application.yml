@@ -1,10 +1,31 @@
 spring:
   application:
     name: remediation-service
+  datasource:
+    url: ${REMEDIATION_DB_URL:jdbc:postgresql://localhost:5432/causora_incidents}
+    username: ${REMEDIATION_DB_USER:causora}
+    password: ${REMEDIATION_DB_PASSWORD:causora}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.default_schema: causora_remediation
+  flyway:
+    enabled: true
+    default-schema: causora_remediation
+    schemas: causora_remediation
+    create-schemas: true
 server:
   port: 8084
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
+causora:
+  remediation:
+    execution-enabled: ${REMEDIATION_EXECUTION_ENABLED:false}

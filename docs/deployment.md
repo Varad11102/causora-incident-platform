@@ -60,6 +60,8 @@ Resolved-incident memory is available from `/api/v1/incident-memory` and `/api/v
 
 Similar historical incidents are available from `/api/v1/incidents/{incidentId}/similar-memory?limit=5`. The limit is clamped to 1-20, the current incident is excluded, and every match includes deterministic score components and human-readable reasons.
 
+Remediation Service listens only on `127.0.0.1:8084`. Its `REMEDIATION_EXECUTION_ENABLED` setting is `false`; keep it disabled until an authenticated approval flow and allowlisted Ansible adapter are deployed. Every proposal, decision, and blocked execution attempt is stored in the `causora_remediation` schema with its actor and timestamp.
+
 ## Capacity
 
 The minimum stack uses explicit container limits and small JVM heaps. A persistent 1 GiB swapfile protects the 2 GiB instance against transient startup spikes. This is appropriate for the first demonstration flow, not for running all planned Java services, Grafana, Prometheus, Kafka, and PostgreSQL simultaneously. Measure before adding components and optimize before considering `t4g.medium`.

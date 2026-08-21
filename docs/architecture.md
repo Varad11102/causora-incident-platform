@@ -95,7 +95,7 @@ Incident
 
 AI output will not be a plain log summary. Investigations will be represented using evidence, hypotheses, confidence scores, causal relationships, and counter-evidence. The AI integration will be provider-independent, with Amazon Bedrock support considered later.
 
-## Planned remediation flow
+## Remediation control plane
 
 ```text
 Root cause
@@ -107,6 +107,8 @@ Root cause
 ```
 
 Managed-node containers will initially simulate multiple Linux/Ansible targets.
+
+Remediation Service persists proposals and an append-only audit trail in the isolated `causora_remediation` PostgreSQL schema. Only the allowlisted `SERVICE_HEALTH_CHECK`, `SERVICE_RESTART`, and `CONFIG_ROLLBACK` playbook keys can be proposed. Proposals require an explicit actor and transition once from `PROPOSED` to `APPROVED` or `REJECTED`. Execution remains disabled by default; attempts against approved proposals return HTTP 409 and write an `EXECUTION_BLOCKED` audit entry. No shell command or user-supplied playbook path is accepted.
 
 ## Initial demonstration scenarios
 

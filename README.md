@@ -2,7 +2,7 @@
 
 Causora is a cloud-ready incident investigation and remediation platform focused on causal reasoning from structured operational evidence.
 
-The cloud MVP now normalizes structured telemetry, publishes it through Kafka, creates incidents idempotently, persists correlated evidence and ordered timelines, and ranks explainable deterministic hypotheses. AI analysis, authentication, and approval-controlled remediation remain later milestones.
+The cloud MVP now normalizes structured telemetry, publishes it through Kafka, creates incidents idempotently, persists correlated evidence and ordered timelines, ranks explainable deterministic hypotheses, and provides an approval-controlled remediation safety layer. AI analysis and authentication remain later milestones.
 
 ## Services
 
@@ -89,6 +89,9 @@ When recovery resolves an incident, Incident Service creates one immutable deter
 curl http://127.0.0.1:8082/api/v1/incident-memory
 curl http://127.0.0.1:8082/api/v1/incident-memory/incidents/{incidentId}
 curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/similar-memory?limit=5
+
+# Remediation proposals require an explicit actor. Execution is disabled by default.
+curl -H "X-Causora-Actor: operator@example.test" http://127.0.0.1:8084/api/v1/remediations
 ```
 
 This is structured PostgreSQL persistence rather than vector similarity or an AI-generated narrative. Similarity retrieval can be added after enough real incident memories exist.

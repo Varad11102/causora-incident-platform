@@ -101,6 +101,23 @@ services:
         condition: service_started
     logging: *bounded-logging
 
+  remediation-service:
+    build: ./services/remediation-service
+    restart: unless-stopped
+    mem_limit: 280m
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms32m -Xmx80m -XX:+UseSerialGC -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=32m -XX:MaxDirectMemorySize=16m -Xss256k
+      REMEDIATION_DB_URL: jdbc:postgresql://postgres:5432/causora_incidents
+      REMEDIATION_DB_USER: causora
+      REMEDIATION_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      REMEDIATION_EXECUTION_ENABLED: "false"
+    ports:
+      - "127.0.0.1:8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *bounded-logging
+
 volumes:
   kafka-data:
   incident-postgres-data:
