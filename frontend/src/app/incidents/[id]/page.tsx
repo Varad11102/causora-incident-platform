@@ -20,6 +20,10 @@ const demoIncident = {
   ],
 };
 
+export function generateStaticParams() {
+  return [{ id: "demo-001" }, { id: "demo-002" }, { id: "demo-003" }];
+}
+
 export default function IncidentDetail({ params }: { params: { id: string } }) {
   const incident = demoIncident;
   return (
