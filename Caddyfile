@@ -12,14 +12,23 @@
   }
 
   @preflight method OPTIONS
-  respond @preflight 204
+  handle @preflight {
+    respond 204
+  }
 
   @incidents {
     method GET
     path /api/v1/incidents /api/v1/incidents/*
   }
-  reverse_proxy @incidents incident-service:8082
+  handle @incidents {
+    reverse_proxy incident-service:8082
+  }
 
-  respond /health 200
-  respond 404
+  handle /health {
+    respond 200
+  }
+
+  handle {
+    respond 404
+  }
 }
