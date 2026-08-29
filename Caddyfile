@@ -1,0 +1,25 @@
+{$API_HOST} {
+  encode gzip zstd
+
+  header {
+    Access-Control-Allow-Origin "https://varad11102.github.io"
+    Access-Control-Allow-Methods "GET, OPTIONS"
+    Access-Control-Allow-Headers "Content-Type"
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "no-referrer"
+    -Server
+  }
+
+  @preflight method OPTIONS
+  respond @preflight 204
+
+  @incidents {
+    method GET
+    path /api/v1/incidents /api/v1/incidents/*
+  }
+  reverse_proxy @incidents incident-service:8082
+
+  respond /health 200
+  respond 404
+}

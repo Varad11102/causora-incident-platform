@@ -1,5 +1,14 @@
+"use client";
+
 import Link from "next/link";
-import { incidents } from "./incidents";
+import { useEffect, useState } from "react";
+
+type Incident = {
+  id: string; title: string; sourceService: string; severity: string;
+  status: string; createdAt: string; summary: string;
+};
+
+const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://13-207-12-164.sslip.io";
 
 const severityStyle: Record<string, string> = {
   CRITICAL: "border-rose-400/30 bg-rose-400/10 text-rose-200",
@@ -17,6 +26,16 @@ const services = [
 ];
 
 export default function Home() {
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch(`${apiBase}/api/v1/incidents`)
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error(`API returned ${response.status}`)))
+      .then(setIncidents)
+      .catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to reach the incident API"));
+  }, []);
+
   return (
     <main className="min-h-screen bg-[#070b16] px-6 py-10 text-slate-100">
       <div className="mx-auto max-w-7xl">
@@ -35,7 +54,7 @@ export default function Home() {
           {[
             ["Active incidents", String(incidents.filter((incident) => incident.status !== "RESOLVED").length), `${incidents.filter((incident) => incident.severity === "CRITICAL" && incident.status !== "RESOLVED").length} critical`],
             ["Mean time to detect", "42s", "Down 18% this week"],
-            ["Evidence collected", "148", "Across 12 services"],
+            ["Persisted incidents", String(incidents.length), "PostgreSQL-backed"],
             ["Auto-remediation", "Off", "Approval required"],
           ].map(([label, value, note]) => (
             <article key={label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl shadow-black/10">
@@ -46,15 +65,17 @@ export default function Home() {
 
         <section className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
           <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
-            <div><h2 className="text-xl font-medium">Recent incidents</h2><p className="mt-1 text-sm text-slate-500">100 sample incidents for frontend evaluation</p></div>
-            <span className="rounded-lg bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-300">100 INCIDENTS</span>
+            <div><h2 className="text-xl font-medium">Recent incidents</h2><p className="mt-1 text-sm text-slate-500">Live operational data from the Causora API</p></div>
+            <span className="rounded-lg bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-300">LIVE API</span>
           </div>
+          {error && <p className="border-b border-rose-400/20 bg-rose-400/10 px-6 py-4 text-sm text-rose-200">API unavailable: {error}</p>}
+          {!error && incidents.length === 0 && <p className="px-6 py-8 text-sm text-slate-400">Loading persisted incidents…</p>}
           <div className="divide-y divide-slate-800">
             {incidents.map((incident) => (
-              <Link key={incident.id} href={`/incidents/${incident.id}`} className="grid gap-4 px-6 py-5 transition hover:bg-slate-800/40 md:grid-cols-[1fr_160px_130px_100px] md:items-center">
-                <div><p className="font-medium text-slate-100">{incident.title}</p><p className="mt-1 text-sm text-slate-500">{incident.service} · {incident.started}</p></div>
+              <Link key={incident.id} href={`/incident?id=${incident.id}`} className="grid gap-4 px-6 py-5 transition hover:bg-slate-800/40 md:grid-cols-[1fr_160px_130px_100px] md:items-center">
+                <div><p className="font-medium text-slate-100">{incident.title}</p><p className="mt-1 text-sm text-slate-500">{incident.sourceService} · {new Date(incident.createdAt).toLocaleString()}</p></div>
                 <span className={`w-fit rounded-full border px-3 py-1 text-xs ${severityStyle[incident.severity]}`}>{incident.severity}</span>
-                <span className="text-sm text-slate-300">{incident.status}</span><span className="text-right text-sm font-medium text-cyan-300">{incident.confidence}% cause</span>
+                <span className="text-sm text-slate-300">{incident.status}</span><span className="text-right text-sm font-medium text-cyan-300">View evidence</span>
               </Link>
             ))}
           </div>

@@ -7,6 +7,24 @@ x-logging: &bounded-logging
     max-file: "3"
 
 services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    mem_limit: 80m
+    environment:
+      API_HOST: ${API_HOST:?API_HOST must be set}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      incident-service:
+        condition: service_started
+    logging: *bounded-logging
+
   kafka:
     image: apache/kafka:3.7.0
     hostname: kafka
@@ -119,5 +137,7 @@ services:
     logging: *bounded-logging
 
 volumes:
+  caddy-data:
+  caddy-config:
   kafka-data:
   incident-postgres-data:

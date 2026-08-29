@@ -13,6 +13,11 @@ output "instance_public_dns" {
   value       = aws_instance.causora.public_dns
 }
 
+output "api_public_ip" {
+  description = "Stable public API address when public web ingress is enabled."
+  value       = try(aws_eip.causora[0].public_ip, null)
+}
+
 output "ssm_start_session_command" {
   description = "Preferred credential-free management command once the instance is online."
   value       = "aws ssm start-session --target ${aws_instance.causora.id} --region ${var.aws_region}"

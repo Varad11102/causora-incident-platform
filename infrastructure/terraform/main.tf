@@ -204,6 +204,17 @@ resource "aws_instance" "causora" {
   depends_on = [aws_iam_role_policy_attachment.ssm]
 }
 
+# A stable address is required for the free sslip.io hostname used by the
+# public read-only API. Public IPv4 is billed at the same hourly rate whether
+# it is ephemeral or elastic while attached to the running instance.
+resource "aws_eip" "causora" {
+  count    = var.enable_public_web ? 1 : 0
+  domain   = "vpc"
+  instance = aws_instance.causora.id
+
+  tags = { Name = "causora-${var.environment}-api" }
+}
+
 # Optional and disabled by default. S3 incurs storage and request charges only
 # when enabled and used; public access is blocked and objects are encrypted.
 resource "aws_s3_bucket" "artifacts" {
