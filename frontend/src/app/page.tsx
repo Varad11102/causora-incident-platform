@@ -1,10 +1,5 @@
 import Link from "next/link";
-
-const incidents = [
-  { id: "demo-001", title: "Payment API database connectivity failure", service: "payment-service", severity: "CRITICAL", status: "INVESTIGATING", started: "8 minutes ago", confidence: 92 },
-  { id: "demo-002", title: "Checkout latency above SLO", service: "checkout-service", severity: "WARNING", status: "OPEN", started: "24 minutes ago", confidence: 76 },
-  { id: "demo-003", title: "Kafka consumer lag recovered", service: "notification-service", severity: "INFO", status: "RESOLVED", started: "2 hours ago", confidence: 88 },
-];
+import { incidents } from "./incidents";
 
 const severityStyle: Record<string, string> = {
   CRITICAL: "border-rose-400/30 bg-rose-400/10 text-rose-200",
@@ -38,7 +33,7 @@ export default function Home() {
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
           {[
-            ["Active incidents", "2", "1 critical"],
+            ["Active incidents", String(incidents.filter((incident) => incident.status !== "RESOLVED").length), `${incidents.filter((incident) => incident.severity === "CRITICAL" && incident.status !== "RESOLVED").length} critical`],
             ["Mean time to detect", "42s", "Down 18% this week"],
             ["Evidence collected", "148", "Across 12 services"],
             ["Auto-remediation", "Off", "Approval required"],
@@ -51,8 +46,8 @@ export default function Home() {
 
         <section className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
           <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
-            <div><h2 className="text-xl font-medium">Recent incidents</h2><p className="mt-1 text-sm text-slate-500">Sample operational data for frontend evaluation</p></div>
-            <span className="rounded-lg bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-300">LIVE DEMO</span>
+            <div><h2 className="text-xl font-medium">Recent incidents</h2><p className="mt-1 text-sm text-slate-500">100 sample incidents for frontend evaluation</p></div>
+            <span className="rounded-lg bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-300">100 INCIDENTS</span>
           </div>
           <div className="divide-y divide-slate-800">
             {incidents.map((incident) => (
