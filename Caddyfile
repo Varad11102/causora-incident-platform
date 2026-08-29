@@ -24,6 +24,11 @@
     reverse_proxy incident-service:8082
   }
 
+  handle / {
+    header Content-Type "application/json"
+    respond `{"service":"causora-api","status":"ok","health":"/health","incidents":"/api/v1/incidents"}` 200
+  }
+
   handle /health {
     respond 200
   }
