@@ -11,6 +11,10 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  session:
+    timeout: 8h
+    jdbc:
+      initialize-schema: never
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
@@ -27,6 +31,14 @@ spring:
       ack-mode: record
 server:
   port: 8082
+  servlet:
+    session:
+      timeout: 8h
+      cookie:
+        name: CAUSORA_SESSION
+        http-only: true
+        secure: true
+        same-site: strict
 management:
   endpoints:
     web:

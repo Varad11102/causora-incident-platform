@@ -2,7 +2,31 @@
 
 ## Current shape
 
-Causora is a Maven multi-module system with independently buildable Spring Boot services and a statically exported Next.js frontend. The deployed AWS slice runs Kafka, PostgreSQL, Telemetry Service, Incident Service, Remediation Service, the demo payment service, and Caddy on one low-cost ARM64 EC2 instance. Gateway and Investigation Service remain explicit scaffolds; investigation logic currently lives with Incident Service to avoid premature network boundaries and extra runtime cost.
+Causora is a Maven multi-module system with independently buildable Spring Boot services and a containerized Next.js runtime. The deployed AWS slice runs Next.js, Kafka, PostgreSQL, Telemetry Service, Incident Service, Remediation Service, the demo payment service, and Caddy on one low-cost ARM64 EC2 instance. Account and edge policy currently live with Incident Service to avoid another JVM and extra runtime cost. Gateway and Investigation Service remain explicit scaffolds; investigation logic currently lives with Incident Service for the same reason.
+
+## Identity and public request flow
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant C as Caddy
+    participant I as Incident Service
+    participant P as PostgreSQL
+    participant N as Next.js
+    B->>C: GET /login
+    C->>N: Application UI
+    B->>C: GET /api/v1/auth/csrf
+    C->>I: CSRF bootstrap
+    B->>C: POST /api/v1/auth/login
+    I->>P: Load BCrypt account
+    I->>P: Persist server-side session
+    I-->>B: Secure HTTP-only session cookie
+    B->>C: GET /api/v1/incidents
+    C->>I: Same-origin authenticated request
+    I->>P: Incident query
+```
+
+Spring Security enforces `VIEWER`, `OPERATOR`, and `ADMIN` roles. Registrations start as `VIEWER`. Password hashes and session records live in PostgreSQL, session identifiers remain in secure HTTP-only SameSite cookies, and CSRF tokens protect login, registration, logout, and future mutations. Caddy serves only account routes, authenticated incident reads, the health endpoint, and the Next.js application.
 
 ## Planned service boundaries
 

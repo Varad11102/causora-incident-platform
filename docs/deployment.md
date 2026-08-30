@@ -6,9 +6,9 @@
 - Compute: one `t4g.small` Amazon Linux 2023 ARM64 instance
 - Storage: one encrypted 16 GiB gp3 root volume
 - Management: AWS Systems Manager; SSH and public ingress remain disabled
-- Runtime: Docker Compose with Caddy, Kafka, PostgreSQL, Telemetry Service, Incident Service, Remediation Service, and demo-payment-service
+- Runtime: Docker Compose with Caddy, Next.js, Kafka, PostgreSQL, Telemetry Service, Incident Service, Remediation Service, and demo-payment-service
 
-Only Caddy receives public HTTP/HTTPS traffic. It terminates TLS, applies strict response headers, answers the public health route, and proxies bounded read-only incident requests. Kafka, PostgreSQL, remediation, telemetry ingestion, and actuator endpoints are not publicly routed.
+Only Caddy receives public HTTP/HTTPS traffic. It terminates TLS, applies strict response headers, serves the Next.js application, answers the public health route, and proxies account and authenticated incident requests. Kafka, PostgreSQL, remediation, telemetry ingestion, and actuator endpoints are not publicly routed.
 
 Kafka and PostgreSQL are available only on the Compose network. Application ports `8081`, `8082`, and `8090` bind to `127.0.0.1`, so verification is performed through SSM rather than public ingress.
 
@@ -27,7 +27,7 @@ docker run --rm --memory=900m --cpus=2 \
 
 umask 077
 printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env
-docker compose build telemetry-service incident-service demo-payment-service
+docker compose build frontend telemetry-service incident-service demo-payment-service
 docker compose up -d
 ```
 
@@ -40,7 +40,7 @@ curl -fsS http://127.0.0.1:8081/actuator/health
 curl -fsS http://127.0.0.1:8082/actuator/health
 curl -fsS http://127.0.0.1:8090/actuator/health
 curl -fsS -X POST http://127.0.0.1:8090/demo/fail
-curl -fsS http://127.0.0.1:8082/api/v1/incidents
+curl -fsS http://127.0.0.1:8082/api/v1/auth/csrf
 docker compose exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server kafka:29092 --describe --group incident-service-v1
 docker stats --no-stream
@@ -66,7 +66,18 @@ Remediation Service listens only on `127.0.0.1:8084`. Its `REMEDIATION_EXECUTION
 
 ## Capacity
 
-The minimum stack uses explicit container limits and small JVM heaps. A persistent 1 GiB swapfile protects the 2 GiB instance against transient startup spikes. This is appropriate for the first demonstration flow, not for running all planned Java services, Grafana, Prometheus, Kafka, and PostgreSQL simultaneously. Measure before adding components and optimize before considering `t4g.medium`.
+The minimum stack uses explicit container limits, small JVM heaps, and a 96 MiB Node.js heap. A persistent 1 GiB swapfile protects the 2 GiB instance against transient startup spikes. This is appropriate for the first demonstration flow, not for running all planned Java services, Grafana, Prometheus, Kafka, and PostgreSQL simultaneously. Measure before adding components and optimize before considering `t4g.medium`.
+
+## Account operations
+
+Flyway creates the account and Spring Session tables. New accounts register as `VIEWER`; promote a trusted operator only through a private SSM session:
+
+```bash
+docker compose exec -T postgres psql -U causora -d causora_incidents \
+  -c "UPDATE user_accounts SET role='OPERATOR' WHERE email='operator@example.com';"
+```
+
+Do not expose PostgreSQL or add account-management SQL to public automation. Production session cookies must remain secure, HTTP-only, and SameSite Strict. The deployed frontend and API intentionally share one HTTPS origin so no cross-origin credential policy is needed.
 
 ## Cost and security
 

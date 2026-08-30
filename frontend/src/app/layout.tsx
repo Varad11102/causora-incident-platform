@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: "Real-time causal incident investigation and approval-controlled remediation.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">

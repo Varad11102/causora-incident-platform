@@ -7,6 +7,7 @@ import {
   DatabaseIcon, GitBranchIcon, LayersIcon, LogoMark, RadioIcon, RefreshIcon,
   SearchIcon, ServerIcon, ShieldIcon, SparklesIcon,
 } from "../components/icons";
+import { Account, accountInitials, apiFetch, csrfFetch } from "../lib/auth";
 
 type Incident = {
   id: string; title: string; sourceService: string; sourceNode: string;
@@ -20,8 +21,6 @@ type IncidentOverview = {
   criticalActiveIncidents: number; evidenceSignals: number; rankedHypotheses: number;
   resolutionRate: number; latestActivityAt: string | null;
 };
-
-const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://13-207-12-164.sslip.io";
 
 const severityStyle: Record<string, string> = {
   CRITICAL: "border-red-400/20 bg-red-400/[.08] text-red-300",
@@ -66,6 +65,7 @@ function DashboardSkeleton() {
 }
 
 export default function Home() {
+  const [account, setAccount] = useState<Account | null>(null);
   const [incidents, setIncidents] = useState<Incident[] | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -78,9 +78,13 @@ export default function Home() {
     setError("");
     try {
       const [response, overviewResponse] = await Promise.all([
-        fetch(`${apiBase}/api/v1/incidents?limit=100`),
-        fetch(`${apiBase}/api/v1/incidents/overview`),
+        apiFetch("/api/v1/incidents?limit=100", { cache: "no-store" }),
+        apiFetch("/api/v1/incidents/overview", { cache: "no-store" }),
       ]);
+      if (response.status === 401) {
+        window.location.replace("/login");
+        return;
+      }
       if (!response.ok) throw new Error(`API returned ${response.status}`);
       setIncidents(await response.json());
       if (overviewResponse.ok) setOverview(await overviewResponse.json());
@@ -91,7 +95,24 @@ export default function Home() {
     }
   }
 
-  useEffect(() => { void loadIncidents(); }, []);
+  useEffect(() => {
+    void apiFetch("/api/v1/auth/me", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) {
+        window.location.replace("/login");
+        return;
+      }
+      setAccount(await response.json());
+      await loadIncidents();
+    }).catch(() => setError("Unable to verify your secure session"));
+  }, []);
+
+  async function signOut() {
+    try {
+      await csrfFetch("/api/v1/auth/logout", { method: "POST" });
+    } finally {
+      window.location.replace("/login");
+    }
+  }
 
   const active = incidents?.filter((incident) => incident.status !== "RESOLVED") ?? [];
   const critical = active.filter((incident) => incident.severity === "CRITICAL");
@@ -133,7 +154,8 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex"><span className="signal-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />Live environment</div>
             <div className="h-5 w-px bg-white/[.08]" />
-            <div className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-gradient-to-br from-slate-700 to-slate-900 text-[10px] font-semibold text-slate-200">VO</div>
+            <div className="hidden text-right sm:block"><p className="max-w-32 truncate text-[10px] font-medium text-slate-300">{account?.displayName ?? "Secure session"}</p><p className="mt-0.5 text-[9px] text-slate-700">{account?.role ?? "VIEWER"}</p></div>
+            <button onClick={() => void signOut()} title="Sign out" aria-label="Sign out" className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-gradient-to-br from-slate-700 to-slate-900 text-[10px] font-semibold text-slate-200 transition hover:border-red-300/25 hover:text-red-200">{account ? accountInitials(account.displayName) : "··"}</button>
           </div>
         </nav>
 
@@ -145,7 +167,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3 self-start lg:self-end">
             <button onClick={() => void loadIncidents(true)} disabled={refreshing} className="flex h-10 items-center gap-2 rounded-xl border border-white/[.09] bg-white/[.035] px-4 text-xs font-medium text-slate-300 transition hover:border-white/[.15] hover:bg-white/[.06] disabled:opacity-50"><RefreshIcon className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh</button>
-            <a href={`${apiBase}/health`} target="_blank" rel="noreferrer" className="flex h-10 items-center gap-2 rounded-xl bg-emerald-300 px-4 text-xs font-semibold text-[#07110e] transition hover:bg-emerald-200">API status <ArrowUpIcon className="h-4 w-4" /></a>
+            <a href="/health" target="_blank" rel="noreferrer" className="flex h-10 items-center gap-2 rounded-xl bg-emerald-300 px-4 text-xs font-semibold text-[#07110e] transition hover:bg-emerald-200">API status <ArrowUpIcon className="h-4 w-4" /></a>
           </div>
         </header>
 
@@ -185,7 +207,7 @@ export default function Home() {
                 <div className="flex items-center justify-between gap-2 text-[11px] text-slate-600 md:justify-end"><span>{relativeTime(incident.createdAt)}</span><ArrowIcon className="h-4 w-4 -translate-x-1 opacity-0 transition group-hover:translate-x-0 group-hover:text-emerald-300 group-hover:opacity-100" /></div>
               </Link>
             ))}</div>}
-            <div className="flex items-center justify-between border-t border-white/[.065] px-5 py-4 text-[10px] text-slate-600 lg:px-6"><span>Showing {filtered.length} of {incidents?.length ?? 0} incidents</span><span>PostgreSQL · read-only public view</span></div>
+            <div className="flex items-center justify-between border-t border-white/[.065] px-5 py-4 text-[10px] text-slate-600 lg:px-6"><span>Showing {filtered.length} of {incidents?.length ?? 0} incidents</span><span>PostgreSQL · authenticated viewer</span></div>
           </section>
 
           <aside id="topology" className="space-y-6">
@@ -197,7 +219,7 @@ export default function Home() {
             <section className="panel-glow rounded-2xl border border-white/[.07] bg-[#0d1117]/90 p-5">
               <div className="flex items-center gap-2 text-xs font-medium text-slate-400"><ShieldIcon className="h-4 w-4 text-violet-300" />Safety boundary</div>
               <h3 className="mt-4 text-xl font-medium leading-tight tracking-[-.025em]">Observe freely.<br />Act deliberately.</h3>
-              <p className="mt-3 text-xs leading-5 text-slate-500">Public access is read-only. Every remediation stays behind an authenticated, human approval gate.</p>
+              <p className="mt-3 text-xs leading-5 text-slate-500">Incident access requires an account. Every remediation stays behind a separate role and human approval gate.</p>
               <div className="mt-5 grid grid-cols-2 gap-2"><div className="rounded-xl border border-emerald-300/10 bg-emerald-300/[.04] p-3"><CheckIcon className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-[10px] text-slate-400">Reads enabled</p></div><div className="rounded-xl border border-violet-300/10 bg-violet-300/[.04] p-3"><ServerIcon className="h-4 w-4 text-violet-300" /><p className="mt-2 text-[10px] text-slate-400">Writes protected</p></div></div>
             </section>
           </aside>

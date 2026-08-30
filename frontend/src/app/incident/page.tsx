@@ -6,6 +6,7 @@ import {
   ActivityIcon, AlertIcon, ArrowUpIcon, CheckIcon, ChevronLeftIcon, ClockIcon,
   CopyIcon, DatabaseIcon, GitBranchIcon, LogoMark, ShieldIcon, SparklesIcon,
 } from "../../components/icons";
+import { apiFetch } from "../../lib/auth";
 
 type Incident = {
   id: string; createdAt: string; updatedAt: string; status: string; severity: string;
@@ -22,8 +23,6 @@ type Hypothesis = {
   id: string; hypothesisType: string; title: string; score: number; explanation: string;
   supportingEvidenceIds?: string[]; counterEvidenceIds?: string[];
 };
-
-const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://13-207-12-164.sslip.io";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "medium" }).format(new Date(value));
@@ -63,13 +62,18 @@ export default function LiveIncidentDetail() {
     if (!id) { setError("This link is missing an incident ID."); return; }
 
     Promise.all([
-      fetch(`${apiBase}/api/v1/incidents/${id}`).then((response) => response.ok ? response.json() : Promise.reject(new Error(`Incident API returned ${response.status}`))),
-      fetch(`${apiBase}/api/v1/incidents/${id}/evidence`).then((response) => response.ok ? response.json() : []),
-      fetch(`${apiBase}/api/v1/incidents/${id}/hypotheses`).then((response) => response.ok ? response.json() : []),
-    ]).then(([incidentItem, evidenceItems, hypothesisItems]) => {
-      setIncident(incidentItem);
-      setEvidence(evidenceItems);
-      setHypotheses(hypothesisItems);
+      apiFetch(`/api/v1/incidents/${id}`, { cache: "no-store" }),
+      apiFetch(`/api/v1/incidents/${id}/evidence`, { cache: "no-store" }),
+      apiFetch(`/api/v1/incidents/${id}/hypotheses`, { cache: "no-store" }),
+    ]).then(async ([incidentResponse, evidenceResponse, hypothesisResponse]) => {
+      if ([incidentResponse, evidenceResponse, hypothesisResponse].some((response) => response.status === 401)) {
+        window.location.replace("/login");
+        return;
+      }
+      if (!incidentResponse.ok) throw new Error(`Incident API returned ${incidentResponse.status}`);
+      setIncident(await incidentResponse.json());
+      setEvidence(evidenceResponse.ok ? await evidenceResponse.json() : []);
+      setHypotheses(hypothesisResponse.ok ? await hypothesisResponse.json() : []);
     }).catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load this investigation"));
   }, []);
 
@@ -167,7 +171,7 @@ export default function LiveIncidentDetail() {
             </aside>
           </div>
 
-          <footer className="mt-10 flex flex-col gap-3 border-t border-white/[.055] pt-6 text-[10px] text-slate-700 sm:flex-row sm:items-center sm:justify-between"><p>Incident {incident.id}</p><div className="flex items-center gap-2"><ShieldIcon className="h-3 w-3" />Read-only public investigation</div></footer>
+          <footer className="mt-10 flex flex-col gap-3 border-t border-white/[.055] pt-6 text-[10px] text-slate-700 sm:flex-row sm:items-center sm:justify-between"><p>Incident {incident.id}</p><div className="flex items-center gap-2"><ShieldIcon className="h-3 w-3" />Authenticated investigation view</div></footer>
         </>}
       </div>
     </main>

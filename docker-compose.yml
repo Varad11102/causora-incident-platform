@@ -23,6 +23,22 @@ services:
     depends_on:
       incident-service:
         condition: service_started
+      frontend:
+        condition: service_started
+    logging: *bounded-logging
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    mem_limit: 160m
+    environment:
+      INTERNAL_API_BASE_URL: http://incident-service:8082
+      NODE_OPTIONS: --max-old-space-size=96
+    expose:
+      - "3000"
+    depends_on:
+      incident-service:
+        condition: service_started
     logging: *bounded-logging
 
   kafka:
@@ -89,9 +105,9 @@ services:
   incident-service:
     build: ./services/incident-service
     restart: unless-stopped
-    mem_limit: 320m
+    mem_limit: 380m
     environment:
-      JAVA_TOOL_OPTIONS: -Xms48m -Xmx128m
+      JAVA_TOOL_OPTIONS: -Xms48m -Xmx128m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m -XX:MaxDirectMemorySize=32m -Xss256k
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       INCIDENT_DB_URL: jdbc:postgresql://postgres:5432/causora_incidents
       INCIDENT_DB_USER: causora

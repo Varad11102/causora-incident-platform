@@ -95,6 +95,29 @@ body {
   animation: signal 2s ease-in-out infinite;
 }
 
+.auth-input {
+  width: 100%;
+  height: 3rem;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: .75rem;
+  background: rgba(0,0,0,.22);
+  padding: 0 .9rem;
+  color: #e2e8f0;
+  font-size: .8rem;
+  outline: none;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.auth-input::placeholder {
+  color: #343d49;
+}
+
+.auth-input:focus {
+  border-color: rgba(110,231,183,.34);
+  background: rgba(0,0,0,.3);
+  box-shadow: 0 0 0 3px rgba(110,231,183,.045);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
