@@ -9,7 +9,10 @@ import io.causora.incident.model.Evidence;
 import io.causora.incident.model.Hypothesis;
 import io.causora.incident.model.TimelineEntry;
 import io.causora.incident.service.IncidentMemorySimilarityService;
+import io.causora.incident.service.IncidentOverview;
+import io.causora.incident.service.IncidentOverviewService;
 import io.causora.incident.service.SimilarIncidentMemory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,19 +27,29 @@ public class IncidentController {
     private final TimelineRepository timelineRepository;
     private final HypothesisRepository hypothesisRepository;
     private final IncidentMemorySimilarityService similarityService;
+    private final IncidentOverviewService overviewService;
 
     public IncidentController(IncidentRepository repository, EvidenceRepository evidenceRepository,
                               TimelineRepository timelineRepository, HypothesisRepository hypothesisRepository,
-                              IncidentMemorySimilarityService similarityService) {
+                              IncidentMemorySimilarityService similarityService,
+                              IncidentOverviewService overviewService) {
         this.repository = repository;
         this.evidenceRepository = evidenceRepository;
         this.timelineRepository = timelineRepository;
         this.hypothesisRepository = hypothesisRepository;
         this.similarityService = similarityService;
+        this.overviewService = overviewService;
     }
 
     @GetMapping
-    public List<Incident> list() { return repository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")); }
+    public List<Incident> list(@RequestParam(defaultValue = "100") int limit) {
+        return repository.findAll(PageRequest.of(0, Math.clamp(limit, 1, 200),
+                Sort.by(Sort.Direction.DESC, "createdAt"))).getContent();
+    }
+
+    @GetMapping("/overview")
+    public IncidentOverview overview() { return overviewService.get(); }
+
     @GetMapping("/{id}")
     public ResponseEntity<Incident> get(@PathVariable UUID id) {
         return repository.findById(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());

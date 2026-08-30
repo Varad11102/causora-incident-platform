@@ -17,11 +17,14 @@ spring:
       group-id: incident-service-v1
       auto-offset-reset: earliest
       enable-auto-commit: false
+      max-poll-records: 100
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.value.default.type: io.causora.events.OperationalEvent
         spring.json.trusted.packages: io.causora.events
+    listener:
+      ack-mode: record
 server:
   port: 8082
 management:

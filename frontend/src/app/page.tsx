@@ -15,6 +15,12 @@ type Incident = {
 
 type Filter = "ALL" | "ACTIVE" | "RESOLVED";
 
+type IncidentOverview = {
+  totalIncidents: number; activeIncidents: number; resolvedIncidents: number;
+  criticalActiveIncidents: number; evidenceSignals: number; rankedHypotheses: number;
+  resolutionRate: number; latestActivityAt: string | null;
+};
+
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://13-207-12-164.sslip.io";
 
 const severityStyle: Record<string, string> = {
@@ -65,14 +71,19 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("ALL");
   const [refreshing, setRefreshing] = useState(false);
+  const [overview, setOverview] = useState<IncidentOverview | null>(null);
 
   async function loadIncidents(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
     setError("");
     try {
-      const response = await fetch(`${apiBase}/api/v1/incidents`);
+      const [response, overviewResponse] = await Promise.all([
+        fetch(`${apiBase}/api/v1/incidents?limit=100`),
+        fetch(`${apiBase}/api/v1/incidents/overview`),
+      ]);
       if (!response.ok) throw new Error(`API returned ${response.status}`);
       setIncidents(await response.json());
+      if (overviewResponse.ok) setOverview(await overviewResponse.json());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to reach the incident API");
     } finally {
@@ -97,9 +108,9 @@ export default function Home() {
   }, [filter, incidents, query]);
 
   const stats = [
-    { label: "Active incidents", value: String(active.length), note: critical.length ? `${critical.length} need attention` : "No critical incidents", icon: AlertIcon, tone: "text-red-300", graph: "M2 25 18 22 34 24 50 12 66 15 82 7 98 11" },
-    { label: "Mean detect time", value: "42s", note: "18% faster this week", icon: ClockIcon, tone: "text-emerald-300", graph: "M2 7 18 12 34 10 50 17 66 15 82 23 98 20" },
-    { label: "Incident memory", value: String(incidents?.length ?? 0), note: `${resolved.length} resolved records`, icon: DatabaseIcon, tone: "text-sky-300", graph: "M2 24 18 23 34 20 50 18 66 14 82 10 98 6" },
+    { label: "Active incidents", value: String(overview?.activeIncidents ?? active.length), note: (overview?.criticalActiveIncidents ?? critical.length) ? `${overview?.criticalActiveIncidents ?? critical.length} need attention` : "No critical incidents", icon: AlertIcon, tone: "text-red-300", graph: "M2 25 18 22 34 24 50 12 66 15 82 7 98 11" },
+    { label: "Resolution rate", value: `${overview?.resolutionRate ?? (incidents?.length ? Math.round((resolved.length * 100) / incidents.length) : 0)}%`, note: `${overview?.resolvedIncidents ?? resolved.length} incidents resolved`, icon: ClockIcon, tone: "text-emerald-300", graph: "M2 7 18 12 34 10 50 17 66 15 82 23 98 20" },
+    { label: "Evidence signals", value: overview ? String(overview.evidenceSignals) : "—", note: overview ? `${overview.rankedHypotheses} ranked hypotheses` : "Loading investigation totals", icon: DatabaseIcon, tone: "text-sky-300", graph: "M2 24 18 23 34 20 50 18 66 14 82 10 98 6" },
     { label: "Execution safety", value: "Locked", note: "Human approval required", icon: ShieldIcon, tone: "text-violet-300", graph: "M2 18 18 18 34 18 50 18 66 18 82 18 98 18" },
   ];
 

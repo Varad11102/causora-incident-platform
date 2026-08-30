@@ -1,103 +1,145 @@
 # Causora
 
-Causora is a cloud-ready incident investigation and remediation platform focused on causal reasoning from structured operational evidence.
+**Explainable incident intelligence from telemetry to remediation—running on a deliberately small AWS footprint.**
 
-The cloud MVP now normalizes structured telemetry, publishes it through Kafka, creates incidents idempotently, persists correlated evidence and ordered timelines, ranks explainable deterministic hypotheses, and provides an approval-controlled remediation safety layer. AI analysis and authentication remain later milestones.
+[Live dashboard](https://varad11102.github.io/causora-incident-platform/) · [API status](https://13-207-12-164.sslip.io/) · [Architecture](docs/architecture.md) · [Deployment guide](docs/deployment.md)
 
-## Services
+Causora is an event-driven incident investigation platform. It turns structured operational events into durable incidents, correlates evidence, builds an ordered timeline, ranks competing root-cause hypotheses, and keeps remediation behind a human approval boundary.
 
-| Service | Port | Responsibility |
-| --- | ---: | --- |
-| gateway | 8080 | External API entry point |
-| telemetry-service | 8081 | Receives and normalizes telemetry and events |
-| incident-service | 8082 | Creates and manages incidents |
-| investigation-service | 8083 | Evidence, hypotheses, confidence, counter-evidence, and AI investigation |
-| remediation-service | 8084 | Approval-controlled Ansible actions |
+## What is live
 
-## Prerequisites
+- A polished Next.js command center deployed to GitHub Pages.
+- A public HTTPS API with bounded, read-only incident access.
+- 100 PostgreSQL-backed incidents processed through Telemetry → Kafka → Incident Service.
+- Evidence correlation by trace, deployment, service, and time window.
+- Deterministic hypotheses with supporting and counter-evidence IDs.
+- Immutable incident memory for resolved investigations.
+- Approval-controlled remediation proposals with execution disabled by default.
+- CI verification for the Maven reactor, frontend types, production export, and dependency audit.
 
-- Java 21
-- Maven 3.9+
-- Node.js 20+ for the frontend
-- Docker Compose for the future local stack
+## Architecture
 
-## Verify backend services
+```mermaid
+flowchart LR
+    Demo[Demo payment service] -->|OperationalEvent| Telemetry[Telemetry service]
+    Telemetry -->|idempotent producer| Kafka[(Kafka / KRaft)]
+    Kafka -->|incident-service-v1| Incident[Incident service]
+    Incident --> Evidence[Evidence + timeline]
+    Evidence --> Hypotheses[Ranked hypotheses]
+    Hypotheses --> Memory[Incident memory]
+    Incident --> Postgres[(PostgreSQL)]
+    Memory --> Postgres
+    Pages[Next.js / GitHub Pages] -->|read-only HTTPS| Caddy[Caddy edge]
+    Caddy --> Incident
+    Remediation[Remediation service] -->|approval + audit| Postgres
+```
+
+The public edge allows only `GET` and `OPTIONS` for incident resources. Telemetry ingestion, remediation writes, database access, Kafka, actuator metrics, and application ports remain private.
+
+## Stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS |
+| Services | Java 21, Spring Boot 3, Maven |
+| Messaging | Apache Kafka 3.7 in KRaft mode |
+| Persistence | PostgreSQL 16, JPA, Flyway |
+| Edge | Caddy with automatic TLS and strict security headers |
+| Runtime | Docker Compose on ARM64 Amazon Linux 2023 |
+| Infrastructure | Terraform, AWS EC2, Systems Manager |
+| Delivery | GitHub Actions, GitHub Pages, Dependabot |
+
+## Core engineering properties
+
+### Idempotent delivery
+
+The event ID is both the Kafka message key and a unique PostgreSQL field. Replayed messages are observable but cannot create duplicate incidents or evidence. The Kafka producer uses `acks=all`, idempotence, bounded in-flight requests, retries, and compression.
+
+### Explainable investigation
+
+Hypothesis scores use explicit rules for direct evidence, ordering, shared deployment correlation, secondary symptoms, and recovery counter-evidence. Every score points back to its supporting and contradicting evidence; no opaque model is required for the current result.
+
+### Safe remediation
+
+Only allowlisted playbook keys can be proposed. Decisions require an actor, transitions are one-way, and every decision or blocked execution attempt is persisted. Execution remains disabled until authenticated approval and a constrained adapter are deployed.
+
+### Bounded public surface
+
+- Incident list requests are clamped to 1–200 records.
+- The aggregate overview provides real counts without fabricated dashboard metrics.
+- CORS permits the deployed GitHub Pages origin.
+- CSP, HSTS, anti-framing, MIME-sniffing, permissions, and crawler protections are applied at the edge.
+
+## Public API
 
 ```bash
-mvn clean verify
+curl https://13-207-12-164.sslip.io/
+curl https://13-207-12-164.sslip.io/health
+curl 'https://13-207-12-164.sslip.io/api/v1/incidents?limit=20'
+curl https://13-207-12-164.sslip.io/api/v1/incidents/overview
+curl https://13-207-12-164.sslip.io/api/v1/incidents/{incidentId}/evidence
+curl https://13-207-12-164.sslip.io/api/v1/incidents/{incidentId}/hypotheses
+curl https://13-207-12-164.sslip.io/api/v1/incidents/{incidentId}/similar-memory?limit=5
 ```
 
-Each Spring Boot service exposes its health endpoint at `/actuator/health` when running.
+Public POST, PUT, PATCH, DELETE, telemetry, and remediation routes are intentionally unavailable.
 
-See [docs/architecture.md](docs/architecture.md) for the planned architecture and delivery sequence.
+## Run locally
 
-## Phase 1: telemetry to incident
-
-```text
-demo-payment-service -> telemetry-service -> Kafka -> incident-service -> PostgreSQL
-```
-
-Kafka uses the JSON topic `telemetry.operational.v1`. Telemetry validates incoming events, supplies missing event IDs and timestamps, and publishes the normalized contract. Incident Service creates an `OPEN` incident for service-down, database-error, resource-exhaustion, and critical service-error events. A unique triggering event ID makes repeated delivery idempotent.
-
-Build the JARs before the images, create a local runtime secret, then start the local stack:
+Requirements: Java 21, Maven 3.9+, Node.js 20.9+, and Docker Compose.
 
 ```bash
 mvn clean verify
 cp .env.example .env
-# Replace POSTGRES_PASSWORD in .env with a unique random value.
+# Replace POSTGRES_PASSWORD with a unique long value.
 docker compose up --build
 ```
 
-Host-run services use Kafka at `localhost:9092`; containers use `kafka:29092`.
-
-```bash
-curl -X POST http://localhost:8090/demo/fail
-curl http://localhost:8082/api/v1/incidents
-curl -X POST http://localhost:8090/demo/recover
-```
-
-Recovery emits an informational `DEPLOYMENT` event. Automatic incident resolution is outside Phase 1.
-
-## Deterministic investigation
-
-Trigger the richer database/deployment scenario from the host through SSM:
+The local edge defaults to `http://localhost`. Generate a deterministic five-event investigation:
 
 ```bash
 curl -X POST http://127.0.0.1:8090/demo/scenarios/database-failure
-curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/evidence
-curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/timeline
-curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/hypotheses
+curl http://127.0.0.1:8082/api/v1/incidents
 ```
 
-The scenario emits a deployment change, database failure, service error, latency spike, and recovery. Correlation uses trace/deployment identifiers and a bounded recent-incident window. Scores are rule-based and include supporting and counter-evidence IDs; no AI or statistical model participates. The recovery evidence transitions the incident to `RESOLVED` without deleting its investigation history.
-
-The deployed JVMs expose Prometheus-format metrics on their private actuator endpoints:
+Run the frontend separately:
 
 ```bash
-curl http://127.0.0.1:8081/actuator/prometheus
-curl http://127.0.0.1:8082/actuator/prometheus
-curl http://127.0.0.1:8090/actuator/prometheus
+cd frontend
+npm ci
+npm run typecheck
+npm run build
+npm run dev
 ```
 
-These endpoints currently provide JVM, HTTP, Kafka-client, process, and system metrics. No Prometheus server is deployed yet.
-
-## Incident memory
-
-When recovery resolves an incident, Incident Service creates one immutable deterministic memory snapshot containing the top-ranked cause, symptoms, evidence summary, deployment, affected services, inferred remediation, and observed result.
+## Verify
 
 ```bash
-curl http://127.0.0.1:8082/api/v1/incident-memory
-curl http://127.0.0.1:8082/api/v1/incident-memory/incidents/{incidentId}
-curl http://127.0.0.1:8082/api/v1/incidents/{incidentId}/similar-memory?limit=5
-
-# Remediation proposals require an explicit actor. Execution is disabled by default.
-curl -H "X-Causora-Actor: operator@example.test" http://127.0.0.1:8084/api/v1/remediations
+mvn clean verify
+cd frontend
+npm ci
+npm audit --audit-level=high
+npm run typecheck
+npm run build
 ```
 
-This is structured PostgreSQL persistence rather than vector similarity or an AI-generated narrative. Similarity retrieval can be added after enough real incident memories exist.
+Service metrics are available privately at `/actuator/prometheus`. The repository includes unit, controller, repository, persistence, idempotency, investigation, memory, similarity, and remediation safety tests.
 
-## AWS Phase 1 deployment
+## Cloud footprint and cost guardrail
 
-The current low-cost deployment runs on one ARM64 `t4g.small` instance and is managed over AWS Systems Manager. Kafka and PostgreSQL are internal Compose services. The three temporary diagnostic application ports bind only to host loopback, and the EC2 security group has no inbound rules.
+The deployed system intentionally stays on one `t4g.small` instance with one encrypted 16 GiB gp3 volume. Kafka and PostgreSQL run inside the same Compose network. GitHub Pages hosts the static frontend at no additional AWS compute cost.
 
-See [docs/deployment.md](docs/deployment.md) for deployment, verification, security, capacity, and cost notes.
+No NAT Gateway, load balancer, RDS, MSK, EKS, ElastiCache, managed monitoring stack, or paid AI API is used. The expected continuous cost remains approximately **$13–14/month**, subject to AWS pricing, taxes, and data transfer.
+
+## Repository map
+
+```text
+causora-events/                 Shared immutable event contract
+services/telemetry-service/    Validation and Kafka publishing
+services/incident-service/     Detection, correlation, hypotheses, memory
+services/remediation-service/  Approval and audit control plane
+demo/                           Deterministic failure scenarios
+frontend/                       Static incident command center
+infrastructure/terraform/       Low-cost AWS foundation
+docs/                           Architecture and operations
+```

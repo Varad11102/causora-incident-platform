@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
     mem_limit: 80m
     environment:
-      API_HOST: ${API_HOST:?API_HOST must be set}
+      API_HOST: ${API_HOST:-http://localhost}
     ports:
       - "80:80"
       - "443:443"

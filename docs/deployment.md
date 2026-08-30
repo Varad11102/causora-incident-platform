@@ -6,7 +6,9 @@
 - Compute: one `t4g.small` Amazon Linux 2023 ARM64 instance
 - Storage: one encrypted 16 GiB gp3 root volume
 - Management: AWS Systems Manager; SSH and public ingress remain disabled
-- Runtime: Docker Compose with Kafka, PostgreSQL, Telemetry Service, Incident Service, and demo-payment-service
+- Runtime: Docker Compose with Caddy, Kafka, PostgreSQL, Telemetry Service, Incident Service, Remediation Service, and demo-payment-service
+
+Only Caddy receives public HTTP/HTTPS traffic. It terminates TLS, applies strict response headers, answers the public health route, and proxies bounded read-only incident requests. Kafka, PostgreSQL, remediation, telemetry ingestion, and actuator endpoints are not publicly routed.
 
 Kafka and PostgreSQL are available only on the Compose network. Application ports `8081`, `8082`, and `8090` bind to `127.0.0.1`, so verification is performed through SSM rather than public ingress.
 

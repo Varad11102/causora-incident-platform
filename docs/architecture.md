@@ -2,7 +2,7 @@
 
 ## Current shape
 
-Causora has five independently buildable Spring Boot services and a Next.js frontend. The first working AWS slice runs Kafka, PostgreSQL, Telemetry Service, Incident Service, and the demo payment service on one low-cost ARM64 EC2 instance with Docker Compose.
+Causora is a Maven multi-module system with independently buildable Spring Boot services and a statically exported Next.js frontend. The deployed AWS slice runs Kafka, PostgreSQL, Telemetry Service, Incident Service, Remediation Service, the demo payment service, and Caddy on one low-cost ARM64 EC2 instance. Gateway and Investigation Service remain explicit scaffolds; investigation logic currently lives with Incident Service to avoid premature network boundaries and extra runtime cost.
 
 ## Planned service boundaries
 
@@ -14,7 +14,7 @@ Causora has five independently buildable Spring Boot services and a Next.js fron
 | Investigation Service | Collect structured evidence, generate and rank hypotheses, track confidence and counter-evidence, and later call provider-independent AI |
 | Remediation Service | Recommend actions, require human approval, execute Ansible, and verify recovery |
 
-## Planned first data flow
+## Deployed data flow
 
 ```text
 Demo service
@@ -25,7 +25,7 @@ Demo service
   -> Incident detected
 ```
 
-Phase 1 implements the direct demo event path (OpenTelemetry instrumentation remains a later phase):
+The current deployment implements the direct structured-event path (OpenTelemetry instrumentation remains a later phase):
 
 ```text
 demo-payment-service (:8090)
@@ -82,7 +82,7 @@ Resolution creates an immutable memory snapshot once per incident. The snapshot 
 
 Memory remains relational and inspectable in PostgreSQL. Vector search and AI-based similarity are deliberately deferred until the evidence corpus is large enough to justify them.
 
-## Planned investigation flow
+## Investigation evolution
 
 ```text
 Incident
