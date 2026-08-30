@@ -4,6 +4,8 @@
 
 [Live application](https://13-207-12-164.sslip.io/) · [Health](https://13-207-12-164.sslip.io/health) · [Architecture](docs/architecture.md) · [Deployment guide](docs/deployment.md)
 
+The former GitHub Pages URL remains as a zero-cost redirect so existing portfolio links continue to work; the application itself runs dynamically on the HTTPS host above.
+
 Causora is an event-driven incident investigation platform. It turns structured operational events into durable incidents, correlates evidence, builds an ordered timeline, ranks competing root-cause hypotheses, and keeps remediation behind a human approval boundary.
 
 ## What is live

@@ -1,19 +1,23 @@
-name: Frontend Verify
+name: Frontend Verify and Legacy Redirect
 
 on:
   push:
     branches: [master]
     paths:
       - "frontend/**"
+      - "legacy-pages/**"
       - ".github/workflows/frontend-pages.yml"
   pull_request:
     paths:
       - "frontend/**"
+      - "legacy-pages/**"
       - ".github/workflows/frontend-pages.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: frontend-${{ github.ref }}
@@ -39,3 +43,27 @@ jobs:
       - run: npm run build
       - name: Build production container
         run: docker build .
+
+  redirect-artifact:
+    if: github.event_name != 'pull_request'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: legacy-pages
+
+  deploy-redirect:
+    if: github.event_name != 'pull_request'
+    needs: redirect-artifact
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Keep the former URL working
+        id: deployment
+        uses: actions/deploy-pages@v5
