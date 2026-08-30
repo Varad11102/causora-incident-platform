@@ -1,104 +1,198 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ActivityIcon, AlertIcon, ArrowIcon, ArrowUpIcon, CheckIcon, ClockIcon,
+  DatabaseIcon, GitBranchIcon, LayersIcon, LogoMark, RadioIcon, RefreshIcon,
+  SearchIcon, ServerIcon, ShieldIcon, SparklesIcon,
+} from "../components/icons";
 
 type Incident = {
-  id: string; title: string; sourceService: string; severity: string;
-  status: string; createdAt: string; summary: string;
+  id: string; title: string; sourceService: string; sourceNode: string;
+  severity: string; status: string; createdAt: string; updatedAt: string; summary: string;
 };
+
+type Filter = "ALL" | "ACTIVE" | "RESOLVED";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://13-207-12-164.sslip.io";
 
 const severityStyle: Record<string, string> = {
-  CRITICAL: "border-rose-400/30 bg-rose-400/10 text-rose-200",
-  WARNING: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-  INFO: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
+  CRITICAL: "border-red-400/20 bg-red-400/[.08] text-red-300",
+  WARNING: "border-amber-300/20 bg-amber-300/[.08] text-amber-200",
+  INFO: "border-sky-300/20 bg-sky-300/[.08] text-sky-200",
 };
 
-const services = [
-  ["Frontend", "Next.js", "UP", "18 ms"],
-  ["Telemetry API", ":8081", "UP", "32 ms"],
-  ["Incident API", ":8082", "UP", "41 ms"],
-  ["Remediation API", ":8084", "UP", "38 ms"],
-  ["Kafka", "telemetry.operational.v1", "UP", "6 ms"],
-  ["PostgreSQL", "causora_incidents", "UP", "12 ms"],
+const severityDot: Record<string, string> = {
+  CRITICAL: "bg-red-400 shadow-[0_0_12px_rgba(248,113,113,.55)]",
+  WARNING: "bg-amber-300 shadow-[0_0_12px_rgba(252,211,77,.45)]",
+  INFO: "bg-sky-300 shadow-[0_0_12px_rgba(125,211,252,.45)]",
+};
+
+const pipeline = [
+  { name: "Telemetry", detail: "Ingestion API", icon: RadioIcon },
+  { name: "Kafka", detail: "Operational events", icon: GitBranchIcon },
+  { name: "Incident service", detail: "Causal engine", icon: SparklesIcon },
+  { name: "PostgreSQL", detail: "Durable history", icon: DatabaseIcon },
 ];
 
-export default function Home() {
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [error, setError] = useState("");
+function relativeTime(value: string) {
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
 
-  useEffect(() => {
-    fetch(`${apiBase}/api/v1/incidents`)
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error(`API returned ${response.status}`)))
-      .then(setIncidents)
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to reach the incident API"));
-  }, []);
+function shortId(id: string) {
+  return id.length > 12 ? id.slice(0, 8).toUpperCase() : id.toUpperCase();
+}
+
+function DashboardSkeleton() {
+  return <div className="divide-y divide-white/[.055]">{Array.from({ length: 6 }).map((_, index) => (
+    <div key={index} className="grid gap-4 px-5 py-5 md:grid-cols-[minmax(0,1fr)_140px_120px_80px] md:items-center lg:px-6">
+      <div><div className="skeleton h-4 w-3/5 rounded" /><div className="skeleton mt-3 h-3 w-2/5 rounded" /></div>
+      <div className="skeleton h-7 w-20 rounded-full" /><div className="skeleton h-5 w-16 rounded" /><div className="skeleton h-5 w-12 rounded" />
+    </div>
+  ))}</div>;
+}
+
+export default function Home() {
+  const [incidents, setIncidents] = useState<Incident[] | null>(null);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("ALL");
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function loadIncidents(isRefresh = false) {
+    if (isRefresh) setRefreshing(true);
+    setError("");
+    try {
+      const response = await fetch(`${apiBase}/api/v1/incidents`);
+      if (!response.ok) throw new Error(`API returned ${response.status}`);
+      setIncidents(await response.json());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to reach the incident API");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => { void loadIncidents(); }, []);
+
+  const active = incidents?.filter((incident) => incident.status !== "RESOLVED") ?? [];
+  const critical = active.filter((incident) => incident.severity === "CRITICAL");
+  const resolved = incidents?.filter((incident) => incident.status === "RESOLVED") ?? [];
+
+  const filtered = useMemo(() => {
+    if (!incidents) return [];
+    const normalized = query.trim().toLowerCase();
+    return incidents.filter((incident) => {
+      const matchesFilter = filter === "ALL" || (filter === "ACTIVE" ? incident.status !== "RESOLVED" : incident.status === "RESOLVED");
+      const matchesQuery = !normalized || [incident.title, incident.sourceService, incident.id].some((value) => value.toLowerCase().includes(normalized));
+      return matchesFilter && matchesQuery;
+    }).slice(0, 10);
+  }, [filter, incidents, query]);
+
+  const stats = [
+    { label: "Active incidents", value: String(active.length), note: critical.length ? `${critical.length} need attention` : "No critical incidents", icon: AlertIcon, tone: "text-red-300", graph: "M2 25 18 22 34 24 50 12 66 15 82 7 98 11" },
+    { label: "Mean detect time", value: "42s", note: "18% faster this week", icon: ClockIcon, tone: "text-emerald-300", graph: "M2 7 18 12 34 10 50 17 66 15 82 23 98 20" },
+    { label: "Incident memory", value: String(incidents?.length ?? 0), note: `${resolved.length} resolved records`, icon: DatabaseIcon, tone: "text-sky-300", graph: "M2 24 18 23 34 20 50 18 66 14 82 10 98 6" },
+    { label: "Execution safety", value: "Locked", note: "Human approval required", icon: ShieldIcon, tone: "text-violet-300", graph: "M2 18 18 18 34 18 50 18 66 18 82 18 98 18" },
+  ];
 
   return (
-    <main className="min-h-screen bg-[#070b16] px-6 py-10 text-slate-100">
-      <div className="mx-auto max-w-7xl">
-        <header className="flex flex-col gap-5 border-b border-slate-800 pb-8 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-400">Causora</p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight">Incident command center</h1>
-            <p className="mt-2 text-slate-400">Causal investigation and approval-controlled remediation</p>
+    <main className="relative min-h-screen overflow-hidden text-slate-100">
+      <div className="app-grid pointer-events-none absolute inset-0" />
+      <div className="relative mx-auto max-w-[1480px] px-4 pb-16 sm:px-6 lg:px-8">
+        <nav className="flex h-20 items-center justify-between border-b border-white/[.065]">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="group flex items-center gap-3" aria-label="Causora home">
+              <span className="grid h-9 w-9 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/[.08] text-emerald-300 shadow-[0_0_30px_rgba(110,231,183,.08)] transition group-hover:bg-emerald-300/[.12]"><LogoMark className="h-5 w-5" /></span>
+              <span className="text-[15px] font-semibold tracking-[-.01em]">causora<span className="text-emerald-300">.</span></span>
+            </Link>
+            <div className="hidden items-center gap-1 rounded-lg border border-white/[.055] bg-white/[.025] p-1 md:flex">
+              <span className="rounded-md bg-white/[.075] px-3 py-1.5 text-xs font-medium text-white">Overview</span>
+              <a href="#incidents" className="px-3 py-1.5 text-xs text-slate-500 transition hover:text-slate-200">Incidents</a>
+              <a href="#topology" className="px-3 py-1.5 text-xs text-slate-500 transition hover:text-slate-200">Topology</a>
+            </div>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-300">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" /> Demo environment healthy
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex"><span className="signal-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />Live environment</div>
+            <div className="h-5 w-px bg-white/[.08]" />
+            <div className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-gradient-to-br from-slate-700 to-slate-900 text-[10px] font-semibold text-slate-200">VO</div>
+          </div>
+        </nav>
+
+        <header className="flex flex-col gap-8 pb-10 pt-14 lg:flex-row lg:items-end lg:justify-between lg:pt-20">
+          <div className="max-w-3xl">
+            <div className="mb-5 flex items-center gap-2 text-xs font-medium uppercase tracking-[.18em] text-emerald-300/80"><ActivityIcon className="h-4 w-4" /> Incident intelligence</div>
+            <h1 className="text-balance text-4xl font-medium leading-[1.05] tracking-[-.045em] text-white sm:text-5xl lg:text-[64px]">See the signal.<br /><span className="text-slate-500">Find the cause.</span></h1>
+            <p className="mt-6 max-w-2xl text-[15px] leading-7 text-slate-400 sm:text-base">Real-time telemetry becomes ranked, explainable incident intelligence—before your team loses the thread.</p>
+          </div>
+          <div className="flex items-center gap-3 self-start lg:self-end">
+            <button onClick={() => void loadIncidents(true)} disabled={refreshing} className="flex h-10 items-center gap-2 rounded-xl border border-white/[.09] bg-white/[.035] px-4 text-xs font-medium text-slate-300 transition hover:border-white/[.15] hover:bg-white/[.06] disabled:opacity-50"><RefreshIcon className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh</button>
+            <a href={`${apiBase}/health`} target="_blank" rel="noreferrer" className="flex h-10 items-center gap-2 rounded-xl bg-emerald-300 px-4 text-xs font-semibold text-[#07110e] transition hover:bg-emerald-200">API status <ArrowUpIcon className="h-4 w-4" /></a>
           </div>
         </header>
 
-        <section className="mt-8 grid gap-4 md:grid-cols-4">
-          {[
-            ["Active incidents", String(incidents.filter((incident) => incident.status !== "RESOLVED").length), `${incidents.filter((incident) => incident.severity === "CRITICAL" && incident.status !== "RESOLVED").length} critical`],
-            ["Mean time to detect", "42s", "Down 18% this week"],
-            ["Persisted incidents", String(incidents.length), "PostgreSQL-backed"],
-            ["Auto-remediation", "Off", "Approval required"],
-          ].map(([label, value, note]) => (
-            <article key={label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl shadow-black/10">
-              <p className="text-sm text-slate-400">{label}</p><p className="mt-2 text-3xl font-semibold">{value}</p><p className="mt-2 text-xs text-slate-500">{note}</p>
-            </article>
-          ))}
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {stats.map((stat) => {
+            const Icon = stat.icon;
+            return <article key={stat.label} className="panel-glow group relative overflow-hidden rounded-2xl border border-white/[.07] bg-[#0d1117]/90 p-5 transition hover:-translate-y-0.5 hover:border-white/[.11]">
+              <div className="flex items-start justify-between"><p className="text-xs font-medium text-slate-500">{stat.label}</p><Icon className={`h-4 w-4 ${stat.tone}`} /></div>
+              <div className="mt-5 flex items-end justify-between gap-4">
+                <div><p className="text-3xl font-medium tracking-[-.035em] text-white">{incidents === null && stat.label !== "Execution safety" ? "—" : stat.value}</p><p className="mt-2 whitespace-nowrap text-[11px] text-slate-500">{stat.note}</p></div>
+                <svg viewBox="0 0 100 30" className={`h-8 w-24 ${stat.tone} opacity-70`} fill="none" aria-hidden="true"><path d={stat.graph} stroke="currentColor" strokeWidth="1.7" vectorEffect="non-scaling-stroke" /><path d={`${stat.graph} V30 H2 Z`} fill="currentColor" opacity=".06" /></svg>
+              </div>
+            </article>;
+          })}
         </section>
 
-        <section className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-          <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
-            <div><h2 className="text-xl font-medium">Recent incidents</h2><p className="mt-1 text-sm text-slate-500">Live operational data from the Causora API</p></div>
-            <span className="rounded-lg bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-300">LIVE API</span>
-          </div>
-          {error && <p className="border-b border-rose-400/20 bg-rose-400/10 px-6 py-4 text-sm text-rose-200">API unavailable: {error}</p>}
-          {!error && incidents.length === 0 && <p className="px-6 py-8 text-sm text-slate-400">Loading persisted incidents…</p>}
-          <div className="divide-y divide-slate-800">
-            {incidents.map((incident) => (
-              <Link key={incident.id} href={`/incident?id=${incident.id}`} className="grid gap-4 px-6 py-5 transition hover:bg-slate-800/40 md:grid-cols-[1fr_160px_130px_100px] md:items-center">
-                <div><p className="font-medium text-slate-100">{incident.title}</p><p className="mt-1 text-sm text-slate-500">{incident.sourceService} · {new Date(incident.createdAt).toLocaleString()}</p></div>
-                <span className={`w-fit rounded-full border px-3 py-1 text-xs ${severityStyle[incident.severity]}`}>{incident.severity}</span>
-                <span className="text-sm text-slate-300">{incident.status}</span><span className="text-right text-sm font-medium text-cyan-300">View evidence</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div><h2 className="text-xl font-medium">Platform health</h2><p className="mt-1 text-sm text-slate-500">Sample service availability and response latency</p></div>
-            <p className="text-xs text-slate-500">Last checked just now</p>
-          </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {services.map(([name, detail, status, latency]) => (
-              <article key={name} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                <div className="flex items-center gap-3">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]" />
-                  <div><p className="text-sm font-medium">{name}</p><p className="mt-0.5 text-xs text-slate-500">{detail}</p></div>
+        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_350px]">
+          <section id="incidents" className="panel-glow overflow-hidden rounded-2xl border border-white/[.07] bg-[#0d1117]/90">
+            <div className="border-b border-white/[.065] px-5 py-5 lg:px-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div><div className="flex items-center gap-2"><h2 className="text-base font-semibold tracking-[-.01em]">Incident stream</h2><span className="rounded-md border border-emerald-300/15 bg-emerald-300/[.06] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[.15em] text-emerald-300">Live</span></div><p className="mt-1 text-xs text-slate-500">Persisted operational events, newest first</p></div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <label className="relative block"><SearchIcon className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-600" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search incidents" className="h-9 w-full rounded-lg border border-white/[.075] bg-black/20 pl-9 pr-3 text-xs text-slate-200 outline-none placeholder:text-slate-600 focus:border-emerald-300/30 sm:w-48" /></label>
+                  <div className="flex rounded-lg border border-white/[.075] bg-black/20 p-1">{(["ALL", "ACTIVE", "RESOLVED"] as Filter[]).map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-md px-2.5 py-1 text-[10px] font-semibold transition ${filter === item ? "bg-white/[.09] text-white" : "text-slate-600 hover:text-slate-300"}`}>{item}</button>)}</div>
                 </div>
-                <div className="text-right"><p className="text-xs font-semibold text-emerald-300">{status}</p><p className="mt-0.5 text-xs text-slate-500">{latency}</p></div>
-              </article>
-            ))}
-          </div>
-        </section>
-        <p className="mt-5 text-center text-xs text-slate-600">Demo data only · Connect the Causora services for live telemetry</p>
+              </div>
+            </div>
+
+            {error && <div className="m-5 flex items-start gap-3 rounded-xl border border-red-400/20 bg-red-400/[.06] p-4 text-sm text-red-200"><AlertIcon className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-medium">Incident API unavailable</p><p className="mt-1 text-xs text-red-200/60">{error}</p></div></div>}
+            {!error && incidents === null && <DashboardSkeleton />}
+            {!error && incidents !== null && filtered.length === 0 && <div className="px-6 py-16 text-center"><SearchIcon className="mx-auto h-6 w-6 text-slate-700" /><p className="mt-3 text-sm text-slate-400">No matching incidents</p><p className="mt-1 text-xs text-slate-600">Try another service, ID, or status.</p></div>}
+            {!error && filtered.length > 0 && <div className="divide-y divide-white/[.055]">{filtered.map((incident) => (
+              <Link key={incident.id} href={`/incident?id=${incident.id}`} className="group grid gap-4 px-5 py-4 transition hover:bg-white/[.025] md:grid-cols-[minmax(0,1fr)_140px_120px_80px] md:items-center lg:px-6">
+                <div className="flex min-w-0 items-start gap-3.5"><span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${severityDot[incident.severity] ?? "bg-slate-500"}`} /><div className="min-w-0"><p className="truncate text-[13px] font-medium text-slate-200 transition group-hover:text-white">{incident.title}</p><div className="mt-1.5 flex items-center gap-2 text-[10px] uppercase tracking-[.09em] text-slate-600"><span className="font-mono">#{shortId(incident.id)}</span><span className="h-0.5 w-0.5 rounded-full bg-slate-700" /><span className="truncate normal-case tracking-normal">{incident.sourceService}</span></div></div></div>
+                <span className={`w-fit rounded-full border px-2.5 py-1 text-[9px] font-bold tracking-[.1em] ${severityStyle[incident.severity] ?? "border-slate-500/20 text-slate-400"}`}>{incident.severity}</span>
+                <div className="flex items-center gap-2 text-xs text-slate-400"><span className={`h-1.5 w-1.5 rounded-full ${incident.status === "RESOLVED" ? "bg-emerald-400" : "bg-amber-300"}`} />{incident.status}</div>
+                <div className="flex items-center justify-between gap-2 text-[11px] text-slate-600 md:justify-end"><span>{relativeTime(incident.createdAt)}</span><ArrowIcon className="h-4 w-4 -translate-x-1 opacity-0 transition group-hover:translate-x-0 group-hover:text-emerald-300 group-hover:opacity-100" /></div>
+              </Link>
+            ))}</div>}
+            <div className="flex items-center justify-between border-t border-white/[.065] px-5 py-4 text-[10px] text-slate-600 lg:px-6"><span>Showing {filtered.length} of {incidents?.length ?? 0} incidents</span><span>PostgreSQL · read-only public view</span></div>
+          </section>
+
+          <aside id="topology" className="space-y-6">
+            <section className="panel-glow overflow-hidden rounded-2xl border border-white/[.07] bg-[#0d1117]/90 p-5">
+              <div className="flex items-start justify-between"><div><h2 className="text-sm font-semibold">Signal path</h2><p className="mt-1 text-xs text-slate-500">End-to-end pipeline</p></div><LayersIcon className="h-4 w-4 text-emerald-300" /></div>
+              <div className="relative mt-6"><div className="absolute bottom-5 left-[17px] top-5 w-px bg-gradient-to-b from-emerald-300/50 via-sky-300/25 to-transparent" />{pipeline.map((service) => { const Icon = service.icon; return <div key={service.name} className="relative flex items-center gap-4 pb-5 last:pb-0"><span className="relative z-10 grid h-9 w-9 place-items-center rounded-xl border border-white/[.08] bg-[#11171d] text-slate-400"><Icon className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="text-xs font-medium text-slate-300">{service.name}</p><p className="mt-0.5 text-[10px] text-slate-600">{service.detail}</p></div><div className="flex items-center gap-1.5 text-[9px] font-semibold text-emerald-300"><span className="signal-dot h-1 w-1 rounded-full bg-emerald-300" />ONLINE</div></div>; })}</div>
+            </section>
+
+            <section className="panel-glow rounded-2xl border border-white/[.07] bg-[#0d1117]/90 p-5">
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-400"><ShieldIcon className="h-4 w-4 text-violet-300" />Safety boundary</div>
+              <h3 className="mt-4 text-xl font-medium leading-tight tracking-[-.025em]">Observe freely.<br />Act deliberately.</h3>
+              <p className="mt-3 text-xs leading-5 text-slate-500">Public access is read-only. Every remediation stays behind an authenticated, human approval gate.</p>
+              <div className="mt-5 grid grid-cols-2 gap-2"><div className="rounded-xl border border-emerald-300/10 bg-emerald-300/[.04] p-3"><CheckIcon className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-[10px] text-slate-400">Reads enabled</p></div><div className="rounded-xl border border-violet-300/10 bg-violet-300/[.04] p-3"><ServerIcon className="h-4 w-4 text-violet-300" /><p className="mt-2 text-[10px] text-slate-400">Writes protected</p></div></div>
+            </section>
+          </aside>
+        </div>
+
+        <footer className="mt-10 flex flex-col gap-3 border-t border-white/[.055] pt-6 text-[10px] text-slate-700 sm:flex-row sm:items-center sm:justify-between"><p>CAUSORA / INCIDENT INTELLIGENCE PLATFORM</p><div className="flex items-center gap-4"><span className="flex items-center gap-1.5"><span className="h-1 w-1 rounded-full bg-emerald-300" />All systems operational</span><span>ap-south-1</span></div></footer>
       </div>
     </main>
   );

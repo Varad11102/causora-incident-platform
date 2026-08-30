@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Causora",
-  description: "Causal incident investigation and remediation",
+  title: "Causora — Incident Intelligence",
+  description: "Real-time causal incident investigation and approval-controlled remediation.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
