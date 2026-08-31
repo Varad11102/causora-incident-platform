@@ -1,9 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ActivityIcon, CheckIcon, DatabaseIcon, GitBranchIcon, LogoMark, ShieldIcon, SparklesIcon } from "../../components/icons";
 import { apiFetch, csrfFetch, readApiError } from "../../lib/auth";
+
+const IncidentUniverse = dynamic(() => import("../../components/incident-universe"), {
+  ssr: false,
+  loading: () => <div className="universe-loading universe-loading-compact absolute right-[-5rem] top-16 h-[500px] w-[570px] opacity-70"><span /></div>,
+});
 
 type Mode = "login" | "register";
 
@@ -66,20 +72,24 @@ export default function LoginPage() {
   return (
     <main className="relative min-h-screen overflow-hidden text-slate-100">
       <div className="app-grid pointer-events-none absolute inset-0" />
+      <div className="aurora-field pointer-events-none absolute inset-x-0 top-0 h-full" />
+      <div className="noise-layer pointer-events-none absolute inset-0" />
       <div className="pointer-events-none absolute -left-52 -top-52 h-[36rem] w-[36rem] rounded-full bg-emerald-300/[.08] blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-72 -right-56 h-[42rem] w-[42rem] rounded-full bg-sky-400/[.06] blur-[140px]" />
 
-      <div className="relative mx-auto grid min-h-screen max-w-[1320px] items-center gap-12 px-5 py-10 lg:grid-cols-[minmax(0,1fr)_460px] lg:px-10">
-        <section className="hidden lg:block">
+      <div className="relative mx-auto grid min-h-screen max-w-[1440px] items-center gap-12 px-5 py-10 lg:grid-cols-[minmax(0,1fr)_460px] lg:px-10">
+        <section className="relative hidden min-h-[720px] overflow-hidden lg:block">
+          <IncidentUniverse compact className="absolute right-[-5rem] top-16 h-[500px] w-[570px] opacity-85" />
+          <div className="relative z-10">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-300/[.08] text-emerald-300 shadow-[0_0_40px_rgba(110,231,183,.1)]"><LogoMark className="h-6 w-6" /></span>
             <span className="text-lg font-semibold tracking-[-.02em]">causora<span className="text-emerald-300">.</span></span>
           </div>
           <p className="mt-14 text-xs font-semibold uppercase tracking-[.2em] text-emerald-300/70">Incident intelligence workspace</p>
-          <h1 className="mt-5 max-w-3xl text-6xl font-medium leading-[1.02] tracking-[-.055em] text-white">From noisy telemetry<br /><span className="text-slate-600">to a credible cause.</span></h1>
-          <p className="mt-7 max-w-xl text-base leading-7 text-slate-400">A live, end-to-end operations platform for investigating failures with durable evidence and explainable rankings.</p>
+          <h1 className="mt-5 max-w-2xl text-6xl font-medium leading-[1.02] tracking-[-.055em] text-white">From noisy telemetry<br /><span className="hero-gradient-text">to a credible cause.</span></h1>
+          <p className="mt-7 max-w-md text-base leading-7 text-slate-400">A live, end-to-end operations platform for investigating failures with durable evidence and explainable rankings.</p>
 
-          <div className="mt-12 grid max-w-2xl gap-3 sm:grid-cols-3">
+          <div className="mt-44 grid max-w-2xl gap-3 sm:grid-cols-3">
             {benefits.map((benefit) => { const Icon = benefit.icon; return (
               <article key={benefit.title} className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4 backdrop-blur-sm">
                 <Icon className="h-4 w-4 text-emerald-300" />
@@ -92,9 +102,11 @@ export default function LoginPage() {
           <div className="mt-10 flex items-center gap-3 text-[10px] uppercase tracking-[.14em] text-slate-700">
             <DatabaseIcon className="h-3.5 w-3.5" /><span>PostgreSQL</span><span>•</span><GitBranchIcon className="h-3.5 w-3.5" /><span>Kafka</span><span>•</span><span>Spring Security</span>
           </div>
+          </div>
         </section>
 
-        <section className="panel-glow rounded-[28px] border border-white/[.085] bg-[#0d1117]/95 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-9">
+        <section className="panel-glow relative overflow-hidden rounded-[28px] border border-white/[.1] bg-[#0d1117]/90 p-6 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:p-9">
+          <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/45 to-transparent" />
           <div className="mb-9 flex items-center gap-3 lg:hidden">
             <span className="grid h-10 w-10 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/[.08] text-emerald-300"><LogoMark className="h-5 w-5" /></span>
             <span className="font-semibold">causora<span className="text-emerald-300">.</span></span>
