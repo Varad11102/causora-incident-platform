@@ -1,18 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIcon, AlertIcon, ArrowUpIcon, CheckIcon, ChevronLeftIcon, ClockIcon,
-  CopyIcon, DatabaseIcon, GitBranchIcon, LogoMark, ShieldIcon, SparklesIcon,
-} from "../../components/icons";
+import { ArrowIcon, ChevronLeftIcon, CopyIcon, LogoMark, ShieldIcon } from "../../components/icons";
 import { apiFetch } from "../../lib/auth";
-
-const IncidentUniverse = dynamic(() => import("../../components/incident-universe"), {
-  ssr: false,
-  loading: () => <div className="universe-loading universe-loading-compact absolute inset-0 rounded-2xl"><span /></div>,
-});
 
 type Incident = {
   id: string; createdAt: string; updatedAt: string; status: string; severity: string;
@@ -40,8 +31,7 @@ function formatType(value: string) {
 
 function duration(start: string, end: string) {
   const seconds = Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000));
-  if (seconds < 60) return `${seconds}s`;
-  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
 function recommendationFor(hypothesis?: Hypothesis) {
@@ -53,7 +43,7 @@ function recommendationFor(hypothesis?: Hypothesis) {
 }
 
 function DetailSkeleton() {
-  return <div className="mt-10 space-y-5"><div className="skeleton h-5 w-40 rounded" /><div className="skeleton h-14 max-w-3xl rounded-xl" /><div className="grid gap-3 sm:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="skeleton h-24 rounded-2xl" />)}</div><div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]"><div className="skeleton h-96 rounded-2xl" /><div className="skeleton h-80 rounded-2xl" /></div></div>;
+  return <div className="mt-10 space-y-5"><div className="skeleton h-3 w-32" /><div className="skeleton h-28 max-w-4xl" /><div className="stats-band">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="skeleton h-28 border-r border-black/10" />)}</div><div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]"><div className="skeleton h-[480px]" /><div className="skeleton h-[420px]" /></div></div>;
 }
 
 export default function LiveIncidentDetail() {
@@ -66,16 +56,12 @@ export default function LiveIncidentDetail() {
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("id");
     if (!id) { setError("This link is missing an incident ID."); return; }
-
     Promise.all([
       apiFetch(`/api/v1/incidents/${id}`, { cache: "no-store" }),
       apiFetch(`/api/v1/incidents/${id}/evidence`, { cache: "no-store" }),
       apiFetch(`/api/v1/incidents/${id}/hypotheses`, { cache: "no-store" }),
     ]).then(async ([incidentResponse, evidenceResponse, hypothesisResponse]) => {
-      if ([incidentResponse, evidenceResponse, hypothesisResponse].some((response) => response.status === 401)) {
-        window.location.replace("/login");
-        return;
-      }
+      if ([incidentResponse, evidenceResponse, hypothesisResponse].some((response) => response.status === 401)) { window.location.replace("/login"); return; }
       if (!incidentResponse.ok) throw new Error(`Incident API returned ${incidentResponse.status}`);
       setIncident(await incidentResponse.json());
       setEvidence(evidenceResponse.ok ? await evidenceResponse.json() : []);
@@ -95,95 +81,80 @@ export default function LiveIncidentDetail() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden text-slate-100">
-      <div className="app-grid pointer-events-none absolute inset-0" />
-      <div className="aurora-field pointer-events-none absolute inset-x-0 top-0 h-[42rem] opacity-70" />
-      <div className="noise-layer pointer-events-none absolute inset-0" />
-      <div className="relative mx-auto max-w-[1380px] px-4 pb-16 sm:px-6 lg:px-8">
-        <nav className="flex h-20 items-center justify-between border-b border-white/[.065]">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="group flex items-center gap-3" aria-label="Causora home"><span className="grid h-9 w-9 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/[.08] text-emerald-300"><LogoMark className="h-5 w-5" /></span><span className="text-[15px] font-semibold">causora<span className="text-emerald-300">.</span></span></Link>
-            <span className="hidden h-5 w-px bg-white/[.08] sm:block" />
-            <span className="hidden text-xs text-slate-600 sm:block">Investigation workspace</span>
+    <main className="min-h-screen">
+      <div className="editorial-shell pb-16">
+        <nav className="topbar">
+          <div className="flex items-center gap-5">
+            <Link href="/" className="wordmark" aria-label="Causora home"><span className="wordmark__mark"><LogoMark className="h-[18px] w-[18px]" /></span><span>causora <sup className="wordmark__index">CASE/07</sup></span></Link>
+            <span className="hidden h-6 w-px bg-black/20 sm:block" /><span className="hidden font-mono text-[8px] uppercase tracking-[.08em] text-black/45 sm:block">Investigation record</span>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/[.05] px-3 py-1.5 text-[10px] font-semibold text-emerald-300"><span className="signal-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />LIVE DATA</div>
+          <span className="live-key"><i /> live evidence</span>
         </nav>
 
-        {error && <section className="mx-auto mt-24 max-w-xl rounded-2xl border border-red-400/20 bg-[#0d1117] p-8 text-center"><span className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-red-400/[.08] text-red-300"><AlertIcon /></span><h1 className="mt-5 text-2xl font-medium">Investigation unavailable</h1><p className="mt-2 text-sm text-slate-500">{error}</p><Link href="/" className="mt-6 inline-flex items-center gap-1 text-xs font-medium text-emerald-300"><ChevronLeftIcon className="h-4 w-4" />Return to incidents</Link></section>}
+        {error && <section className="mx-auto mt-20 max-w-xl border border-black bg-[#ff5c35] p-8"><span className="eyebrow">Load failure</span><h1 className="display-type mt-10 text-5xl">Investigation unavailable.</h1><p className="mt-4 text-sm text-black/60">{error}</p><Link href="/" className="button-solid mt-7"><ChevronLeftIcon className="h-4 w-4" />Return to incident index</Link></section>}
         {!error && !incident && <DetailSkeleton />}
 
         {incident && <>
-          <div className="pb-8 pt-8">
-            <Link href="/" className="inline-flex items-center gap-1 text-xs text-slate-500 transition hover:text-slate-200"><ChevronLeftIcon className="h-4 w-4" />Back to incident stream</Link>
-          </div>
+          <div className="flex items-center justify-between py-6"><Link href="/" className="utility-link inline-flex items-center gap-1"><ChevronLeftIcon className="h-4 w-4" />Incident index</Link><button onClick={() => void copyIncidentId()} className="button-line !min-h-0 !border-0 !p-0 font-mono !text-[9px]"><CopyIcon className="h-3.5 w-3.5" />{copied ? "ID copied" : `#${incident.id.slice(0, 8).toUpperCase()}`}</button></div>
 
-          <header className="glass-panel panel-glow relative overflow-hidden rounded-3xl border border-white/[.075] bg-[#0d1117]/95 p-6 sm:p-8 lg:p-10">
-            <div className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-red-400/[.035] blur-3xl" />
-            <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-center">
-              <div className="max-w-4xl">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-red-400/20 bg-red-400/[.08] px-2.5 py-1 text-[9px] font-bold tracking-[.12em] text-red-300">{incident.severity}</span>
-                  <span className={`rounded-full border px-2.5 py-1 text-[9px] font-bold tracking-[.12em] ${incident.status === "RESOLVED" ? "border-emerald-300/20 bg-emerald-300/[.07] text-emerald-300" : "border-amber-300/20 bg-amber-300/[.07] text-amber-200"}`}>{incident.status}</span>
-                  <span className="text-[10px] text-slate-600">Opened {formatDate(incident.createdAt)}</span>
-                </div>
-                <h1 className="text-balance mt-6 text-3xl font-medium leading-[1.1] tracking-[-.035em] text-white sm:text-4xl lg:text-5xl">{incident.title}</h1>
-                <p className="mt-5 max-w-3xl text-sm leading-6 text-slate-400 sm:text-[15px]">{incident.summary}</p>
-                <button onClick={() => void copyIncidentId()} className="mt-5 flex items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.035] px-3.5 py-2.5 text-[10px] font-medium text-slate-400 transition hover:bg-white/[.06] hover:text-white lg:hidden"><CopyIcon className="h-3.5 w-3.5" />{copied ? "Copied" : `#${incident.id.slice(0, 8).toUpperCase()}`}</button>
+          <header className="detail-kicker border-x border-b border-black">
+            <div className="grid lg:grid-cols-[150px_minmax(0,1fr)]">
+              <div className="flex flex-row justify-between border-b border-black p-5 lg:min-h-[340px] lg:flex-col lg:border-b-0 lg:border-r">
+                <div><p className="font-mono text-[8px] uppercase tracking-[.1em] text-black/45">Severity</p><p className={`mt-3 w-fit px-2 py-1 font-mono text-[9px] font-bold ${incident.severity === "CRITICAL" ? "bg-[#d93b2b] text-white" : "border border-black"}`}>{incident.severity}</p></div>
+                <div className="text-right lg:text-left"><p className="display-type text-6xl leading-none text-[#ff5c35]">07</p><p className="mt-2 font-mono text-[8px] uppercase tracking-[.08em] text-black/45">case record</p></div>
               </div>
-              <div className="relative hidden h-[250px] lg:block">
-                <IncidentUniverse compact active={incident.status === "RESOLVED" ? 0 : 1} critical={incident.severity === "CRITICAL" && incident.status !== "RESOLVED" ? 1 : 0} evidence={evidence.length} className="absolute inset-0 min-h-0 rounded-2xl" />
-                <button onClick={() => void copyIncidentId()} className="absolute bottom-4 right-4 z-10 flex shrink-0 items-center gap-2 rounded-xl border border-white/[.09] bg-black/35 px-3.5 py-2.5 text-[10px] font-medium text-slate-400 backdrop-blur-md transition hover:bg-white/[.08] hover:text-white"><CopyIcon className="h-3.5 w-3.5" />{copied ? "Copied" : `#${incident.id.slice(0, 8).toUpperCase()}`}</button>
+              <div className="flex min-h-[340px] flex-col justify-between p-6 sm:p-9 lg:p-12">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[8px] uppercase tracking-[.09em] text-black/50"><span>{incident.status}</span><span>Opened / {formatDate(incident.createdAt)}</span><span>{incident.sourceService}</span></div>
+                <div className="my-16 lg:my-8"><h1 className="display-type max-w-5xl text-[48px] leading-[.9] sm:text-[64px] lg:text-[78px]">{incident.title}</h1><p className="mt-7 max-w-3xl border-l-4 border-[#ff5c35] pl-4 text-[13px] leading-6 text-black/60">{incident.summary}</p></div>
+                <p className="font-mono text-[8px] uppercase tracking-[.08em] text-black/40">Trigger / {incident.triggeringEventId}</p>
               </div>
             </div>
 
-            <div className="relative mt-9 grid gap-px overflow-hidden rounded-2xl border border-white/[.065] bg-white/[.065] sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid border-t border-black sm:grid-cols-2 lg:grid-cols-4">
               {[
-                { label: "Affected service", value: incident.sourceService, icon: ActivityIcon },
-                { label: "Source node", value: incident.sourceNode, icon: DatabaseIcon },
-                { label: "Evidence window", value: duration(incident.createdAt, incident.updatedAt), icon: ClockIcon },
-                { label: "Top confidence", value: topHypothesis ? `${topHypothesis.score}%` : "Pending", icon: SparklesIcon },
-              ].map((metric) => { const Icon = metric.icon; return <div key={metric.label} className="bg-[#0b0f14] px-4 py-4"><div className="flex items-center gap-2 text-[10px] text-slate-600"><Icon className="h-3.5 w-3.5" />{metric.label}</div><p className="mt-2 truncate text-xs font-medium text-slate-300">{metric.value}</p></div>; })}
+                ["Affected service", incident.sourceService],
+                ["Source node", incident.sourceNode],
+                ["Evidence window", duration(incident.createdAt, incident.updatedAt)],
+                ["Top confidence", topHypothesis ? `${topHypothesis.score}%` : "Pending"],
+              ].map(([label, value]) => <div className="detail-metric" key={label}><p>{label}</p><p className="truncate">{value}</p></div>)}
             </div>
           </header>
 
-          <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <section className="glass-panel panel-glow overflow-hidden rounded-2xl border border-white/[.07] bg-[#0d1117]/90">
-              <div className="flex items-center justify-between border-b border-white/[.065] px-5 py-5 sm:px-6"><div><h2 className="text-base font-semibold">Evidence timeline</h2><p className="mt-1 text-xs text-slate-500">Correlated signals in observation order</p></div><span className="rounded-lg bg-white/[.05] px-2.5 py-1 text-[10px] text-slate-400">{timeline.length} records</span></div>
-              <ol className="px-5 py-2 sm:px-6">
-                {timeline.map((item, index) => (
-                  <li key={item.id} className="group relative grid grid-cols-[22px_minmax(0,1fr)] gap-4 py-5">
-                    {index < timeline.length - 1 && <span className="absolute bottom-0 left-[10px] top-8 w-px bg-white/[.07]" />}
-                    <span className={`relative z-10 mt-1.5 h-[9px] w-[9px] rounded-full ring-4 ring-[#0d1117] ${item.severity === "CRITICAL" || item.severity === "ERROR" ? "bg-red-400" : item.evidenceType === "RECOVERY" ? "bg-emerald-300" : "bg-sky-300"}`} />
-                    <article>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-300">{formatType(item.evidenceType)}</span><span className="text-[10px] text-slate-600">{formatDate(item.observedAt)}</span></div>
-                      <p className="mt-2 text-[13px] leading-6 text-slate-400">{item.value}</p>
-                      <div className="mt-3 flex flex-wrap gap-2"><span className="rounded-md border border-white/[.06] bg-white/[.025] px-2 py-1 text-[9px] text-slate-600">{item.sourceService}</span>{item.deploymentId && <span className="max-w-[240px] truncate rounded-md border border-white/[.06] bg-white/[.025] px-2 py-1 font-mono text-[9px] text-slate-600">deploy/{item.deploymentId}</span>}<span className="rounded-md border border-white/[.06] bg-white/[.025] px-2 py-1 text-[9px] text-slate-600">{item.confidence}% confidence</span></div>
-                    </article>
-                  </li>
-                ))}
+          <div className="mt-14 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
+            <section>
+              <div className="section-rule"><h2>Evidence chronology</h2><p>{String(timeline.length).padStart(2, "0")} correlated records</p></div>
+              <ol className="mt-3 border-t border-black">
+                {timeline.map((item, index) => <li key={item.id} className="timeline-item">
+                  <span className="timeline-item__index">{String(index + 1).padStart(2, "0")}</span>
+                  <article className="timeline-item__body">
+                    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="timeline-item__title">{formatType(item.evidenceType)}</h3><time className="font-mono text-[8px] text-black/40">{formatDate(item.observedAt)}</time></div>
+                    <p className="timeline-item__copy">{item.value}</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5"><span className="metadata-chip">{item.sourceService}</span>{item.deploymentId && <span className="metadata-chip max-w-[240px] truncate">deploy/{item.deploymentId}</span>}<span className="metadata-chip">{item.confidence}% confidence</span></div>
+                  </article>
+                </li>)}
               </ol>
             </section>
 
-            <aside className="space-y-6 lg:sticky lg:top-6">
-              <section className="glass-panel panel-glow overflow-hidden rounded-2xl border border-white/[.07] bg-[#0d1117]/90">
-                <div className="border-b border-white/[.065] px-5 py-5"><div className="flex items-center gap-2"><SparklesIcon className="h-4 w-4 text-emerald-300" /><h2 className="text-sm font-semibold">Ranked hypotheses</h2></div><p className="mt-1.5 text-[11px] text-slate-500">Deterministic, evidence-backed scoring</p></div>
-                <div className="divide-y divide-white/[.055]">{rankedHypotheses.map((item, index) => (
-                  <article key={item.id} className="p-5">
-                    <div className="flex items-start gap-4"><div className="relative grid h-14 w-14 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" style={{ background: `radial-gradient(circle at center, #0d1117 61%, transparent 63%), conic-gradient(#6ee7b7 ${item.score}%, rgba(255,255,255,.07) 0)` }}>{item.score}<span className="text-[8px] text-slate-500">%</span></div><div className="min-w-0"><div className="flex items-center gap-2"><span className="text-[9px] font-semibold text-slate-600">0{index + 1}</span><h3 className="text-xs font-medium text-slate-200">{item.title || formatType(item.hypothesisType)}</h3></div><p className="mt-2 line-clamp-3 text-[10px] leading-4 text-slate-500">{item.explanation}</p></div></div>
-                    <div className="mt-4 flex items-center gap-3 text-[9px]"><span className="flex items-center gap-1 text-emerald-300/70"><CheckIcon className="h-3 w-3" />{item.supportingEvidenceIds?.length ?? 0} supporting</span><span className="flex items-center gap-1 text-amber-200/60"><AlertIcon className="h-3 w-3" />{item.counterEvidenceIds?.length ?? 0} counter</span></div>
-                  </article>
-                ))}{rankedHypotheses.length === 0 && <p className="p-5 text-xs text-slate-500">No hypotheses have been ranked yet.</p>}</div>
+            <aside className="space-y-5 lg:sticky lg:top-24">
+              <section className="ink-panel p-5 sm:p-6">
+                <div className="flex items-start justify-between border-b border-white/20 pb-4"><div><span className="eyebrow eyebrow--inverse">Cause ranking</span><p className="mt-3 text-[10px] text-white/35">Deterministic / evidence backed</p></div><span className="font-mono text-[8px] text-[#d9ff43]">{String(rankedHypotheses.length).padStart(2, "0")} FOUND</span></div>
+                <div>{rankedHypotheses.map((item, index) => <article key={item.id} className="hypothesis-row">
+                  <div className="grid grid-cols-[62px_minmax(0,1fr)] gap-4"><div><p className="hypothesis-row__score">{item.score}</p><p className="font-mono text-[7px] text-white/30">PERCENT</p></div><div><p className="font-mono text-[8px] text-white/30">RANK / {String(index + 1).padStart(2, "0")}</p><h3 className="mt-2 text-[11px] font-bold leading-4">{item.title || formatType(item.hypothesisType)}</h3></div></div>
+                  <div className="score-track"><i style={{ width: `${item.score}%` }} /></div>
+                  <p className="mt-3 text-[9px] leading-4 text-white/42">{item.explanation}</p>
+                  <p className="mt-3 font-mono text-[7px] uppercase tracking-[.07em] text-white/30">{item.supportingEvidenceIds?.length ?? 0} supporting / {item.counterEvidenceIds?.length ?? 0} counter</p>
+                </article>)}{rankedHypotheses.length === 0 && <p className="py-6 text-[10px] text-white/40">No hypotheses have been ranked yet.</p>}</div>
               </section>
 
-              <section className="panel-glow rounded-2xl border border-emerald-300/15 bg-gradient-to-br from-emerald-300/[.07] to-transparent p-5">
-                <div className="flex items-center justify-between"><div className="flex items-center gap-2 text-xs font-medium text-emerald-200"><ShieldIcon className="h-4 w-4" />Suggested response</div><span className="rounded-md border border-violet-300/15 bg-violet-300/[.07] px-2 py-1 text-[8px] font-bold tracking-[.1em] text-violet-200">APPROVAL GATED</span></div>
-                <p className="mt-4 text-xs leading-5 text-slate-400">{recommendationFor(topHypothesis)}</p>
-                <button disabled className="mt-5 flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-white/[.08] bg-white/[.045] px-4 py-2.5 text-[10px] font-semibold text-slate-500"><GitBranchIcon className="h-3.5 w-3.5" />Protected remediation <ArrowUpIcon className="h-3.5 w-3.5" /></button>
+              <section className="safety-note p-5 sm:p-6">
+                <div className="flex items-center justify-between"><span className="eyebrow">Suggested response</span><span className="font-mono text-[7px] font-bold uppercase tracking-[.08em]">Approval gated</span></div>
+                <p className="mt-10 text-[12px] font-semibold leading-6">{recommendationFor(topHypothesis)}</p>
+                <button disabled className="mt-7 flex w-full cursor-not-allowed items-center justify-between border-t border-black pt-4 text-[10px] font-bold opacity-55"><span className="flex items-center gap-2"><ShieldIcon className="h-4 w-4" />Protected remediation</span><ArrowIcon className="h-4 w-4" /></button>
               </section>
             </aside>
           </div>
 
-          <footer className="mt-10 flex flex-col gap-3 border-t border-white/[.055] pt-6 text-[10px] text-slate-700 sm:flex-row sm:items-center sm:justify-between"><p>Incident {incident.id}</p><div className="flex items-center gap-2"><ShieldIcon className="h-3 w-3" />Authenticated investigation view</div></footer>
+          <footer className="mt-16 flex flex-col gap-3 border-t border-black py-5 font-mono text-[8px] uppercase tracking-[.08em] text-black/45 sm:flex-row sm:justify-between"><p>Incident / {incident.id}</p><p>Authenticated investigation record</p></footer>
         </>}
       </div>
     </main>

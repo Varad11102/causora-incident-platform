@@ -43,7 +43,7 @@ Only Caddy receives public traffic. Incident reads require an authenticated `VIE
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, Three.js, Node.js 22 |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, self-hosted fonts, Node.js 22 |
 | Security | Spring Security, BCrypt, Spring Session JDBC, CSRF, roles |
 | Services | Java 21, Spring Boot 3.5, Maven |
 | Messaging | Apache Kafka 3.7 in KRaft mode |
